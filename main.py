@@ -7,11 +7,8 @@ from kivymd.uix.behaviors import BackgroundColorBehavior
 from kivy.animation import Animation
 
 
-class SidebarButton(MDLabel, BackgroundColorBehavior):
-    def __init__(self, text, **kwargs):
-        super(SidebarButton, self).__init__(**kwargs)
-        self.text = text
-        self.bg_color = (0, 0, 0, 0) # Set the background color to transparent
+class SidebarButton(MDIconButton):
+    pass
 
 
 class MyApp(MDApp):
@@ -20,17 +17,17 @@ class MyApp(MDApp):
 
         # Sidebar
         self.sidebar = MDBoxLayout(orientation="vertical", size_hint=(0.2, 1), padding="8dp", spacing="8dp")
-        self.sidebar.bg_color = (0.2, 0.2, 0.2, 1) # Set the background color of the sidebar
+        self.sidebar.md_bg_color = (0.2, 0.2, 0.2, 1)  # Set the background color of the sidebar
 
         # Hamburger menu button
         self.menu_button = MDIconButton(icon="menu", pos_hint={"center_x": 0.1, "center_y": 0.90})
-        self.menu_button.bind(on_release=self.toggle_sidebar) # Bind the button to the toggle_sidebar function
+        self.menu_button.bind(on_release=self.toggle_sidebar)  # Bind the button to the toggle_sidebar function
         main_layout.add_widget(self.menu_button)
 
         buttons = [
-            SidebarButton(text="Agents"),
-            SidebarButton(text="Settings"),
-            SidebarButton(text="Help"),
+            SidebarButton(icon="account", on_release=self.show_agents),
+            SidebarButton(icon="cog", on_release=self.show_settings),
+            SidebarButton(icon="help", on_release=self.show_help),
         ]
         for button in buttons:
             self.sidebar.add_widget(button)
@@ -41,6 +38,8 @@ class MyApp(MDApp):
 
         main_layout.add_widget(self.sidebar)
         main_layout.add_widget(self.content_area)
+
+        
 
         # Show the content area by default
         self.content_area.opacity = 1
@@ -63,7 +62,19 @@ class MyApp(MDApp):
         self.menu_button.pos_hint = {"center_x": 0.1, "center_y": 0.90}
 
     def hide_button(self):
-        self.menu_button.pos_hint = {"center_x": 0.1, "center_y": 0.90}
+        self.menu_button.pos_hint = {"center_x": -1, "center_y": 0.90}
+
+    def show_agents(self, *args):
+        self.content_area.clear_widgets()
+        self.content_area.add_widget(MDLabel(text="Agents content"))
+
+    def show_settings(self, *args):
+        self.content_area.clear_widgets()
+        self.content_area.add_widget(MDLabel(text="Settings content"))
+
+    def show_help(self, *args):
+        self.content_area.clear_widgets()
+        self.content_area.add_widget(MDLabel(text="Help content"))
 
 
 if __name__ == "__main__":

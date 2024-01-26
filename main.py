@@ -3,18 +3,25 @@ from kivymd.app import MDApp
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.label import MDLabel
 from kivymd.uix.button import MDIconButton
-from kivymd.uix.behaviors import BackgroundColorBehavior
 from kivy.animation import Animation
 from kivy.uix.relativelayout import RelativeLayout
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.togglebutton import ToggleButton
 from kivy.uix.image import AsyncImage
+from kivy.uix.button import Button
 
 class SidebarButton(MDIconButton):
     pass
 
-class SidebarTextButton(MDIconButton):
+class HamburgerButton(MDIconButton):
     pass
+
+class SidebarTextButton(MDBoxLayout):
+    def __init__(self, parent, **kwargs):
+        super(SidebarTextButton, self).__init__(**kwargs)
+        # Add the hamburger menu button
+        self.button = HamburgerButton(icon="menu", on_release=parent.toggle_sidebar)
+        self.add_widget(self.button)
 
 class MyApp(MDApp):
     def build(self):
@@ -25,9 +32,13 @@ class MyApp(MDApp):
         self.sidebar.md_bg_color = (0.2, 0.2, 0.2, 1)
 
         # Hamburger menu button
-        self.menu_button = MDIconButton(icon="menu", pos_hint={"x": 0.05, "center_y": 0.90})  # Adjusted the pos_hint property
+        self.menu_button = HamburgerButton(icon="menu", pos_hint={"x": 0.05, "center_y": 0.90})
         self.menu_button.bind(on_release=self.toggle_sidebar)
         main_layout.add_widget(self.menu_button)
+
+        # Close sidebar button
+        close_button = SidebarTextButton(parent=self, pos_hint={"center_x": 0.5})
+        self.sidebar.add_widget(close_button)
 
         # Add image icon and title to the top of the sidebar
         image_icon = AsyncImage(source="XT.png", size_hint_y=None, height=50)
@@ -57,8 +68,6 @@ class MyApp(MDApp):
         self.content_area.opacity = 1
 
         return main_layout
-
-
     def create_radio_buttons(self):
         box = BoxLayout(orientation='vertical')
 
@@ -74,17 +83,16 @@ class MyApp(MDApp):
         if self.sidebar.x == 0:
             anim = Animation(x=-self.sidebar.width, duration=0.2)
             anim.start(self.sidebar)
-            self.hide_button()
+            self.menu_button.opacity = 1 if self.menu_button.opacity == 0 else 0
         else:
             anim = Animation(x=0, duration=0.2)
             anim.start(self.sidebar)
-            self.show_button()
+            self.menu_button.opacity = 0
 
-    def show_button(self, *args):
-        self.menu_button.pos_hint = {"x": 0.05, "center_y": 0.90}  # Adjusted the pos_hint property
-
-    def hide_button(self):
-        self.menu_button.pos_hint = {"x": 0.05, "center_y": 0.90}  # Adjusted the pos_hint property
+    def hide_sidebar(self, *args):
+        anim = Animation(x=-self.sidebar.width, duration=0.2)
+        anim.start(self.sidebar)
+        self.menu_button.opacity = 1
 
     def change_page(self, instance):
         page_name = instance.text

@@ -25,7 +25,7 @@ class MyApp(MDApp):
         self.sidebar.md_bg_color = (0.2, 0.2, 0.2, 1)
 
         # Hamburger menu button
-        self.menu_button = MDIconButton(icon="menu", pos_hint={"center_x": 0.1, "center_y": 0.90})
+        self.menu_button = MDIconButton(icon="menu", pos_hint={"x": 0.05, "center_y": 0.90})  # Adjusted the pos_hint property
         self.menu_button.bind(on_release=self.toggle_sidebar)
         main_layout.add_widget(self.menu_button)
 
@@ -81,10 +81,10 @@ class MyApp(MDApp):
             self.show_button()
 
     def show_button(self, *args):
-        self.menu_button.pos_hint = {"center_x": 0.1, "center_y": 0.90}
+        self.menu_button.pos_hint = {"x": 0.05, "center_y": 0.90}  # Adjusted the pos_hint property
 
     def hide_button(self):
-        self.menu_button.pos_hint = {"center_x": 0.1, "center_y": 0.90}
+        self.menu_button.pos_hint = {"x": 0.05, "center_y": 0.90}  # Adjusted the pos_hint property
 
     def change_page(self, instance):
         page_name = instance.text

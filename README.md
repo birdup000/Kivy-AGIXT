@@ -13,10 +13,11 @@ Before running the application, make sure you have the following installed:
 - [Python](https://www.python.org/) (version 3.6 or higher)
 
 # pip packages
+```bash
 pip install kivy
-<br>
-pip install https://github.com/kivymd/KivyMD/archive/master.zip
 
+pip install https://github.com/kivymd/KivyMD/archive/master.zip
+```
 
 ### Running the App
 

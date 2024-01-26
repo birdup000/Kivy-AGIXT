@@ -8,6 +8,7 @@ from kivy.animation import Animation
 from kivy.uix.relativelayout import RelativeLayout
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.togglebutton import ToggleButton
+from kivy.uix.image import AsyncImage
 
 class SidebarButton(MDIconButton):
     pass
@@ -28,6 +29,10 @@ class MyApp(MDApp):
         self.menu_button.bind(on_release=self.toggle_sidebar)
         main_layout.add_widget(self.menu_button)
 
+        # Add image icon to the top of the sidebar
+        image_icon = AsyncImage(source="XT.png", size_hint_y=None, height=50)
+        self.sidebar.add_widget(image_icon)
+
         # Add radio buttons to the sidebar
         self.sidebar.add_widget(self.create_radio_buttons())
 
@@ -43,7 +48,6 @@ class MyApp(MDApp):
 
         # Main content area
         self.content_area = MDBoxLayout(orientation="vertical", size_hint=(0.8, 1), padding="8dp", spacing="8dp")
-        self.content_area.add_widget(MDLabel(text="This is the main content area"))
         main_layout.add_widget(self.content_area)
 
         # Show the content area by default

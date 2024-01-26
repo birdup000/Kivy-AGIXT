@@ -29,15 +29,18 @@ class MyApp(MDApp):
         self.menu_button.bind(on_release=self.toggle_sidebar)
         main_layout.add_widget(self.menu_button)
 
-        # Add image icon to the top of the sidebar
+        # Add image icon and title to the top of the sidebar
         image_icon = AsyncImage(source="XT.png", size_hint_y=None, height=50)
+        title_label = MDLabel(text="AGIXT", halign="center", theme_text_color="Custom", text_color=(1, 1, 1, 1), pos_hint={"center_x": 0.5, "center_y": 0.15})
+        
         self.sidebar.add_widget(image_icon)
+        self.sidebar.add_widget(title_label)
 
         # Add radio buttons to the sidebar
         self.sidebar.add_widget(self.create_radio_buttons())
 
         icon_buttons = [
-            SidebarButton(icon="account", on_release=self.show_agents),
+            SidebarButton(icon="account", on_release=self.show_user),
             SidebarButton(icon="cog", on_release=self.show_settings),
             SidebarButton(icon="help", on_release=self.show_help),
         ]
@@ -55,10 +58,11 @@ class MyApp(MDApp):
 
         return main_layout
 
+
     def create_radio_buttons(self):
         box = BoxLayout(orientation='vertical')
 
-        for page_name in ["Home", "About", "Contact"]:
+        for page_name in ["Home", "Agents", "Instruct"]:
             rb = ToggleButton(group='pages', size_hint=(1, None), height=30)
             rb.text = page_name
             rb.bind(on_press=self.change_page)
@@ -88,14 +92,14 @@ class MyApp(MDApp):
 
         if page_name == "Home":
             self.content_area.add_widget(MDLabel(text="Home content"))
-        elif page_name == "About":
-            self.content_area.add_widget(MDLabel(text="About content"))
-        elif page_name == "Contact":
-            self.content_area.add_widget(MDLabel(text="Contact content"))
+        elif page_name == "Agents":
+            self.content_area.add_widget(MDLabel(text="Agent content"))
+        elif page_name == "Instruct":
+            self.content_area.add_widget(MDLabel(text="Instruct content"))
 
-    def show_agents(self, *args):
+    def show_user(self, *args):
         self.content_area.clear_widgets()
-        self.content_area.add_widget(MDLabel(text="Agents content"))
+        self.content_area.add_widget(MDLabel(text="User content"))
 
     def show_settings(self, *args):
         self.content_area.clear_widgets()

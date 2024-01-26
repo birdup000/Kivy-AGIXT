@@ -28,6 +28,9 @@ class MyApp(MDApp):
         self.menu_button.bind(on_release=self.toggle_sidebar)
         main_layout.add_widget(self.menu_button)
 
+        # Add radio buttons to the sidebar
+        self.sidebar.add_widget(self.create_radio_buttons())
+
         icon_buttons = [
             SidebarButton(icon="account", on_release=self.show_agents),
             SidebarButton(icon="cog", on_release=self.show_settings),
@@ -35,9 +38,6 @@ class MyApp(MDApp):
         ]
         for button in icon_buttons:
             self.sidebar.add_widget(button)
-
-        # Add radio buttons to the sidebar
-        self.sidebar.add_widget(self.create_radio_buttons())
 
         main_layout.add_widget(self.sidebar)
 

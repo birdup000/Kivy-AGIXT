@@ -96,10 +96,57 @@ class PromptManagementPage(Screen):
         self.add_widget(MDLabel(text="Prompt Management content"))
 
 
+
 class MemoryManagementPage(Screen):
     def __init__(self, **kwargs):
         super(MemoryManagementPage, self).__init__(name='Memory Management', **kwargs)
-        self.add_widget(MDLabel(text="Memory Management content"))
+
+        # Create the main layout
+        layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
+
+        # Add Kivy widgets to the layout
+        layout.add_widget(Label(text="Memory Management"))
+        layout.add_widget(Label(text="Enter Search Query:"))
+        search_query = TextInput()
+        layout.add_widget(search_query)
+
+        # Add checkbox for Advanced Options
+        advanced_options_checkbox = CheckBox(active=False)
+        layout.add_widget(advanced_options_checkbox)
+
+        # Create a Spinner for collection number
+        collection_spinner = Spinner(
+            text="Use collection number (Default is 0)",
+            values=["0", "1", "2"],  # Update with your actual collection numbers
+        )
+        layout.add_widget(collection_spinner)
+
+        # Create buttons for actions
+        query_button = Button(text="Query Memory")
+        delete_button = Button(text="Delete Memory")
+
+        # Define button callbacks (implement functionality accordingly)
+        def query_memory_callback(instance):
+            # Indent the code block inside the function
+            # Example:
+            user_input = search_query.text
+            print("Querying memory...")
+
+        def delete_memory_callback(instance):
+            # Implement deletion logic using ApiClient.delete_agent_memory
+            # Update the UI accordingly
+            pass
+
+        # Bind buttons to their callbacks
+        query_button.bind(on_press=query_memory_callback)
+        delete_button.bind(on_press=delete_memory_callback)
+
+        # Add buttons to the layout
+        layout.add_widget(query_button)
+        layout.add_widget(delete_button)
+
+        self.add_widget(layout)
+
 
 
 class AgentManagementPage(Screen):

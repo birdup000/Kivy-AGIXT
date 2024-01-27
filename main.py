@@ -15,6 +15,10 @@ from kivy.uix.checkbox import CheckBox
 from kivy.uix.spinner import Spinner
 import os
 from kivy.uix.label import Label
+from kivy.uix.scrollview import ScrollView
+from kivy.uix.popup import Popup
+
+
 
 class SidebarButton(MDIconButton):
     pass
@@ -91,15 +95,95 @@ class PromptManagementPage(Screen):
         super(PromptManagementPage, self).__init__(name='Prompt Management', **kwargs)
         self.add_widget(MDLabel(text="Prompt Management content"))
 
+
 class MemoryManagementPage(Screen):
     def __init__(self, **kwargs):
         super(MemoryManagementPage, self).__init__(name='Memory Management', **kwargs)
         self.add_widget(MDLabel(text="Memory Management content"))
 
+
 class AgentManagementPage(Screen):
     def __init__(self, **kwargs):
         super(AgentManagementPage, self).__init__(name='Agent Management', **kwargs)
-        self.add_widget(MDLabel(text="Agent Management content"))
+        self.agent_name = ""
+        self.provider_name = ""
+        self.agent_settings = {}
+        self.extension_settings = {}
+        self.available_commands = {}
+        self.extension_setting_keys = []
+
+        self.layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
+        self.header_label = Label(text="Agent Management", font_size=24)
+        self.layout.add_widget(self.header_label)
+
+        self.agent_selection_spinner = Spinner(text="Select Agent")
+        self.agent_selection_spinner.values = ["Agent1", "Agent2", "Agent3"]  # Replace with your actual agent names
+        self.agent_selection_spinner.bind(text=self.on_agent_spinner_change)
+        self.layout.add_widget(self.agent_selection_spinner)
+
+        self.agent_actions_layout = BoxLayout(orientation='horizontal', spacing=10, size_hint_y=None, height=40)
+        self.import_agent_button = Button(text="Import Agent", on_press=self.import_agent)
+        self.add_agent_button = Button(text="Add Agent", on_press=self.add_agent)
+        self.agent_actions_layout.add_widget(self.import_agent_button)
+        self.agent_actions_layout.add_widget(self.add_agent_button)
+        self.layout.add_widget(self.agent_actions_layout)
+
+        self.provider_selection_spinner = Spinner(text="Select Provider")
+        self.provider_selection_spinner.values = ["Provider1", "Provider2", "Provider3"]  # Replace with your actual providers
+        self.provider_selection_spinner.bind(text=self.on_provider_spinner_change)
+        self.layout.add_widget(self.provider_selection_spinner)
+
+        self.agent_settings_scrollview = ScrollView()
+        self.agent_settings_layout = BoxLayout(orientation='vertical', spacing=10, padding=10, size_hint_y=None)
+        self.agent_settings_scrollview.add_widget(self.agent_settings_layout)
+        self.layout.add_widget(self.agent_settings_scrollview)
+
+        self.update_settings_button = Button(text="Update Agent Settings", on_press=self.update_agent_settings)
+        self.wipe_memories_button = Button(text="Wipe Agent Memories", on_press=self.wipe_agent_memories)
+        self.delete_agent_button = Button(text="Delete Agent", on_press=self.delete_agent)
+        self.layout.add_widget(self.update_settings_button)
+        self.layout.add_widget(self.wipe_memories_button)
+        self.layout.add_widget(self.delete_agent_button)
+
+        self.add_widget(self.layout)
+
+    def on_agent_spinner_change(self, spinner, text):
+        self.agent_name = text
+        # Load agent configuration and update UI
+        self.load_agent_configuration()
+
+    def import_agent(self, instance):
+        # Implement import agent functionality
+        pass
+
+    def add_agent(self, instance):
+        # Implement add agent functionality
+        pass
+
+    def on_provider_spinner_change(self, spinner, text):
+        self.provider_name = text
+        # Update provider settings in UI
+        self.update_provider_settings()
+
+    def update_provider_settings(self):
+        # Implement updating provider settings in the UI
+        pass
+
+    def update_agent_settings(self, instance):
+        # Implement updating agent settings
+        pass
+
+    def wipe_agent_memories(self, instance):
+        # Implement wiping agent memories
+        pass
+
+    def delete_agent(self, instance):
+        # Implement deleting agent
+        pass
+
+    def load_agent_configuration(self):
+        # Implement loading agent configuration and updating UI
+        pass
 
 
 class AgentTrainingPage(Screen):

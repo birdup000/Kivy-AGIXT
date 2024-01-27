@@ -19,6 +19,8 @@ from kivy.uix.scrollview import ScrollView
 from kivy.uix.popup import Popup
 from kivy.uix.dropdown import DropDown
 from kivy.uix.filechooser import FileChooserListView
+from kivy.uix.filechooser import FileChooserIconView
+import json
 
 
 class SidebarButton(MDIconButton):
@@ -94,12 +96,97 @@ class HomeScreen(Screen):
 
         
 
+class ApiClient:
+    @staticmethod
+    def get_chains():
+        # Implement your logic here
+        return []
+
+    @staticmethod
+    def get_agents():
+        # Implement your logic here
+        return []
+
+    @staticmethod
+    def import_chain(chain_name, steps):
+        # Implement your logic here
+        pass
+
+    @staticmethod
+    def delete_chain(chain_name):
+        # Implement your logic here
+        pass
+
+def predefined_injection_variables():
+    # Implement your logic here
+    pass
+
+def modify_chain(chain_name, agents):
+    # Implement your logic here
+    pass
+
+
 
 
 class ChainManagementPage(Screen):
     def __init__(self, **kwargs):
         super(ChainManagementPage, self).__init__(name='Chain Management', **kwargs)
-        self.add_widget(MDLabel(text="Chain Management content"))
+
+        # Create a layout
+        layout = BoxLayout(orientation='vertical')
+
+        # Create a dropdown menu
+        self.chain_action = DropDown()
+
+        # Create buttons for each option and add them to the dropdown
+        for action in ['Create Chain', 'Modify Chain', 'Delete Chain']:
+            btn = Button(text=action, size_hint_y=None, height=44)
+            btn.bind(on_release=lambda btn: self.chain_action.select(btn.text))
+            self.chain_action.add_widget(btn)
+
+        # Create a button to open the dropdown
+        mainbutton = Button(text='Select Action', size_hint=(None, None))
+        mainbutton.bind(on_release=self.chain_action.open)
+        self.chain_action.bind(on_select=lambda instance, x: setattr(mainbutton, 'text', x))
+
+        layout.add_widget(mainbutton)
+
+        # Create a text input field for the chain name
+        self.chain_name = TextInput(multiline=False)
+        layout.add_widget(Label(text='Chain Name: '))
+        layout.add_widget(self.chain_name)
+
+        # Create a file chooser for importing a chain
+        self.chain_file = FileChooserIconView()
+        layout.add_widget(Label(text='Import Chain: '))
+        layout.add_widget(self.chain_file)
+
+        # Create an action button
+        self.action_button = Button(text='Perform Action')
+        self.action_button.bind(on_release=self.on_action_button_pressed)
+        layout.add_widget(self.action_button)
+
+        self.add_widget(layout)
+
+    def on_action_button_pressed(self, instance):
+        if self.chain_action.text == 'Create Chain':
+            # TODO: Implement chain creation logic here
+            pass
+        elif self.chain_action.text == 'Modify Chain':
+            # TODO: Implement chain modification logic here
+            pass
+        elif self.chain_action.text == 'Delete Chain':
+            # TODO: Implement chain deletion logic here
+            pass
+
+
+
+
+
+
+
+
+
 
 
 
@@ -445,6 +532,8 @@ class MyApp(MDApp):
         # Sidebar
         self.sidebar = MDBoxLayout(orientation="vertical", size_hint=(0.2, 1), padding="8dp", spacing="8dp")
         self.sidebar.md_bg_color = (0.2, 0.2, 0.2, 1)
+         
+
 
         # Hamburger menu button
         self.menu_button = HamburgerButton(icon="menu", pos_hint={"x": 0.05, "center_y": 0.90})
@@ -485,8 +574,10 @@ class MyApp(MDApp):
         # Create screens and add them to ScreenManager
         sm = MyApp.sm
 
-        chain_management_screen = ChainManagementPage()
-        sm.add_widget(chain_management_screen)
+        if "Chain Management" not in [s.name for s in sm.screens]:
+         chain_management_screen = ChainManagementPage()
+         sm.add_widget(chain_management_screen)
+
 
         prompt_management_screen = PromptManagementPage()
         sm.add_widget(prompt_management_screen)

@@ -524,7 +524,30 @@ class HomeScreen(Screen):
         self.add_widget(MDLabel(text="Home content"))
 
 class MyApp(MDApp):
-    sm = ScreenManager()
+    def __init__(self, **kwargs):
+        super(MyApp, self).__init__(**kwargs)
+        self.sm = ScreenManager()
+
+        chain_management_screen = ChainManagementPage()
+        self.sm.add_widget(chain_management_screen)
+
+        prompt_management_screen = PromptManagementPage()
+        self.sm.add_widget(prompt_management_screen)
+
+        agent_interactions_screen = AgentInteractionsPage()
+        self.sm.add_widget(agent_interactions_screen)
+
+        memory_management_screen = MemoryManagementPage()
+        self.sm.add_widget(memory_management_screen)
+
+        agent_management_screen = AgentManagementPage()
+        self.sm.add_widget(agent_management_screen)
+
+        agent_training_screen = AgentTrainingPage()
+        self.sm.add_widget(agent_training_screen)
+
+        home_screen = HomeScreen()
+        self.sm.add_widget(home_screen)
 
     def build(self):
         main_layout = FloatLayout()
@@ -532,8 +555,6 @@ class MyApp(MDApp):
         # Sidebar
         self.sidebar = MDBoxLayout(orientation="vertical", size_hint=(0.2, 1), padding="8dp", spacing="8dp")
         self.sidebar.md_bg_color = (0.2, 0.2, 0.2, 1)
-         
-
 
         # Hamburger menu button
         self.menu_button = HamburgerButton(icon="menu", pos_hint={"x": 0.05, "center_y": 0.90})
@@ -547,7 +568,7 @@ class MyApp(MDApp):
         # Add image icon and title to the top of the sidebar
         image_icon = AsyncImage(source="XT.png", size_hint_y=None, height=50)
         title_label = MDLabel(text="AGIXT", halign="center", theme_text_color="Custom", text_color=(1, 1, 1, 1), pos_hint={"center_x": 0.5, "center_y": 0.15})
-        
+
         self.sidebar.add_widget(image_icon)
         self.sidebar.add_widget(title_label)
 
@@ -570,32 +591,6 @@ class MyApp(MDApp):
 
         # Show the content area by default
         self.content_area.opacity = 1
-
-        # Create screens and add them to ScreenManager
-        sm = MyApp.sm
-
-        if "Chain Management" not in [s.name for s in sm.screens]:
-         chain_management_screen = ChainManagementPage()
-         sm.add_widget(chain_management_screen)
-
-
-        prompt_management_screen = PromptManagementPage()
-        sm.add_widget(prompt_management_screen)
-
-        agent_interactions_screen = AgentInteractionsPage()
-        sm.add_widget(agent_interactions_screen)
-
-        memory_management_screen = MemoryManagementPage()
-        sm.add_widget(memory_management_screen)
-
-        agent_management_screen = AgentManagementPage()
-        sm.add_widget(agent_management_screen)
-
-        agent_training_screen = AgentTrainingPage()
-        sm.add_widget(agent_training_screen)
-
-        home_screen = HomeScreen()
-        sm.add_widget(home_screen)
 
         # Set the default screen to Home
         self.change_page(ToggleButton(text="Home"))
@@ -634,7 +629,7 @@ class MyApp(MDApp):
 
         # Find the corresponding screen in the ScreenManager
         screen = None
-        for s in MyApp.sm.screens:
+        for s in self.sm.screens:
             if s.name == page_name:
                 screen = s
                 break

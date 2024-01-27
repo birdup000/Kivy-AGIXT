@@ -101,6 +101,7 @@ class AgentManagementPage(Screen):
         super(AgentManagementPage, self).__init__(name='Agent Management', **kwargs)
         self.add_widget(MDLabel(text="Agent Management content"))
 
+
 class AgentTrainingPage(Screen):
     def __init__(self, **kwargs):
         super(AgentTrainingPage, self).__init__(name='Agent Training', **kwargs)
@@ -110,24 +111,24 @@ class AgentTrainingPage(Screen):
 
         layout = BoxLayout(orientation='vertical', spacing=8, padding=8)
 
-        layout.add_widget(Label(text="Agent Training"))
+        layout.add_widget(Label(text="Agent Training", font_size=20, color=(1,1,1,1)))
 
-        mode_spinner = Spinner(text="Website")
+        mode_spinner = Spinner(text="Website", size_hint_y=None, height=40)
         mode_spinner.values = ["Website", "File", "Text", "GitHub Repository", "arXiv"]
         mode_spinner.bind(text=self.on_mode_spinner_change)
         layout.add_widget(mode_spinner)
 
-        advanced_options_checkbox = CheckBox()
+        advanced_options_checkbox = CheckBox(size_hint_y=None, height=40)
         advanced_options_checkbox.bind(active=self.on_advanced_options_checkbox_change)
         layout.add_widget(advanced_options_checkbox)
 
-        self.collection_number_input = TextInput(multiline=False)
+        self.collection_number_input = TextInput(multiline=False, size_hint_y=None, height=40)
         layout.add_widget(self.collection_number_input)
 
-        self.learn_input = TextInput(multiline=True)
+        self.learn_input = TextInput(multiline=True, size_hint_y=None, height=100)
         layout.add_widget(self.learn_input)
 
-        train_button = Button(text="Train")
+        train_button = Button(text="Train", size_hint_y=None, height=40)
         train_button.bind(on_press=self.on_train_button_press)
         layout.add_widget(train_button)
 

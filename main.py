@@ -17,7 +17,8 @@ import os
 from kivy.uix.label import Label
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.popup import Popup
-
+from kivy.uix.dropdown import DropDown
+from kivy.uix.filechooser import FileChooserListView
 
 
 class SidebarButton(MDIconButton):
@@ -32,11 +33,6 @@ class SidebarTextButton(MDBoxLayout):
         self.button = HamburgerButton(icon="menu", on_release=parent.toggle_sidebar)
         self.add_widget(self.button)
 
-class ChainManagement(MDLabel):
-    pass
-
-class PromptManagement(MDLabel):
-    pass
 
 class AgentInteractionsPage(Screen):
     def __init__(self, **kwargs):
@@ -85,15 +81,159 @@ class AgentInteractionsPage(Screen):
     def on_send_button_press(self, button):
         pass
 
+
+
+class HomeScreen(Screen):
+    def __init__(self, **kwargs):
+        super(HomeScreen, self).__init__(name='Home', **kwargs)
+        
+        # Provide the correct path to your image file
+        image_source = "AGiXT-gradient-flat.png"
+
+        self.add_widget(AsyncImage(source=image_source, size_hint_y=None, height=50))
+
+        
+
+
+
 class ChainManagementPage(Screen):
     def __init__(self, **kwargs):
         super(ChainManagementPage, self).__init__(name='Chain Management', **kwargs)
         self.add_widget(MDLabel(text="Chain Management content"))
 
+
+
+
 class PromptManagementPage(Screen):
     def __init__(self, **kwargs):
         super(PromptManagementPage, self).__init__(name='Prompt Management', **kwargs)
-        self.add_widget(MDLabel(text="Prompt Management content"))
+
+        self.title = "Prompt Management"
+        
+        layout = BoxLayout(orientation="vertical")
+        
+        # Display documentation
+        layout.add_widget(Label(text="Prompt Management Documentation"))
+        show_documentation = ToggleButton(text="Show Documentation", state="normal")
+        layout.add_widget(show_documentation)
+        documentation_label = Label(text="""
+To create dynamic prompts that can have user inputs, you can use curly braces `{}` in your prompt content. 
+Anything between the curly braces will be considered as an input field. For example:
+
+"Hello, my name is {name} and I'm {age} years old."
+
+In the above prompt, `name` and `age` will be the input arguments. These arguments can be used in chains.
+""")
+        layout.add_widget(documentation_label)
+        show_documentation.bind(on_press=lambda x: self.toggle_widget_state(documentation_label))
+        
+        # Select action
+        layout.add_widget(Label(text="Action"))
+        action = ToggleButton(text="Create New Prompt", state="down")
+        layout.add_widget(action)
+        
+        # New prompt category
+        layout.add_widget(Label(text="New Prompt Category"))
+        new_prompt_category = ToggleButton(text="New Prompt Category", state="normal")
+        layout.add_widget(new_prompt_category)
+        prompt_category_input = TextInput()
+        layout.add_widget(prompt_category_input)
+        create_category_button = Button(text="Create Prompt Category")
+        layout.add_widget(create_category_button)
+        create_category_button.bind(on_press=lambda x: self.create_prompt_category(prompt_category_input.text))
+        
+        # Select existing prompt category
+        layout.add_widget(Label(text="Select Prompt Category"))
+        prompt_categories = ["Default"]  # Replace with the actual prompt categories
+        prompt_category_select = TextInput(text="Default")
+        layout.add_widget(prompt_category_select)
+        delete_category_button = Button(text="Delete Prompt Category")
+        layout.add_widget(delete_category_button)
+        delete_category_button.bind(on_press=lambda x: self.delete_prompt_category(prompt_category_select.text))
+        
+        # Prompt list
+        layout.add_widget(Label(text="Existing Prompts"))
+        prompt_list = ["Prompt 1", "Prompt 2"]  # Replace with the actual prompt list
+        prompt_select = TextInput(text="")
+        layout.add_widget(prompt_select)
+        
+        if action.state == "down":
+            # Create new prompt
+            import_prompt_button = FileChooserListView(filters=["*.txt"])
+            layout.add_widget(import_prompt_button)
+            create_prompt_button = Button(text="Create Prompt")
+            layout.add_widget(create_prompt_button)
+            create_prompt_button.bind(on_press=lambda x: self.create_prompt(prompt_select.text, import_prompt_button.selection))
+        elif action.state == "normal":
+            # Modify prompt
+            prompt_content_input = TextInput(height=300)
+            layout.add_widget(prompt_content_input)
+            export_prompt_button = Button(text="Export Prompt")
+            layout.add_widget(export_prompt_button)
+            export_prompt_button.bind(on_press=lambda x: self.export_prompt(prompt_select.text, prompt_content_input.text))
+        else:
+            # Delete prompt
+            delete_prompt_button = Button(text="Delete Prompt")
+            layout.add_widget(delete_prompt_button)
+            delete_prompt_button.bind(on_press=lambda x: self.delete_prompt(prompt_select.text))
+        
+        action.bind(on_press=lambda x: self.toggle_action_state(import_prompt_button, prompt_content_input, delete_prompt_button))
+        
+        # Perform Action button
+        perform_action_button = Button(text="Perform Action")
+        layout.add_widget(perform_action_button)
+        perform_action_button.bind(on_press=self.perform_action)
+        
+        self.add_widget(layout)  # Add the layout to the screen
+
+    def toggle_widget_state(self, widget):
+        widget.disabled = not widget.disabled
+        
+    def toggle_action_state(self, import_prompt_button, prompt_content_input, delete_prompt_button):
+        import_prompt_button.disabled = not import_prompt_button.disabled
+        prompt_content_input.disabled = not prompt_content_input.disabled
+        delete_prompt_button.disabled = not delete_prompt_button.disabled
+        
+    def create_prompt_category(self, category_name):
+        # TODO: Implement the logic to create a new prompt category
+        print(f"Created prompt category: {category_name}")
+        
+    def delete_prompt(self, prompt_name):
+        # TODO: Implement the logic to delete a prompt
+        print(f"Deleted prompt: {prompt_name}")
+
+    def export_prompt(self, prompt_name, prompt_content):
+        # TODO: Implement the logic to export a prompt
+        print(f"Exported prompt: {prompt_name}, Content: {prompt_content}")
+
+    def perform_action(self, instance):
+        prompt_name = self.prompt_select.text
+        prompt_content_input = self.prompt_content_input  # Access the prompt_content_input through the class instance
+        prompt_content = prompt_content_input.text if prompt_content_input else None
+        
+        if prompt_name and (prompt_content or self.action.state == "normal"):  # Access the action through the class instance
+            if self.action.state == "down":  # Access the action through the class instance
+                self.create_prompt(prompt_name, self.import_prompt_button.selection)  # Access the import_prompt_button through the class instance
+            elif self.action.state == "normal":  # Access the action through the class instance
+                self.modify_prompt(prompt_name, prompt_content)
+            else:
+                self.delete_prompt(prompt_name)
+        else:
+            print("Prompt name and content are required.")
+
+    def create_prompt(self, prompt_name, prompt_file):
+        # TODO: Implement the logic to create a new prompt using the given prompt_name and prompt_file
+        print(f"Created prompt: {prompt_name}, File: {prompt_file}")
+
+    def modify_prompt(self, prompt_name, prompt_content):
+        # TODO: Implement the logic to modify an existing prompt using the given prompt_name and prompt_content
+        print(f"Modified prompt: {prompt_name}, Content: {prompt_content}")
+
+
+
+
+
+
 
 
 
@@ -146,6 +286,8 @@ class MemoryManagementPage(Screen):
         layout.add_widget(delete_button)
 
         self.add_widget(layout)
+
+
 
 
 

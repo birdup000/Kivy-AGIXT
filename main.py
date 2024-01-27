@@ -13,6 +13,8 @@ from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.textinput import TextInput
 from kivy.uix.checkbox import CheckBox
 from kivy.uix.spinner import Spinner
+import os
+from kivy.uix.label import Label
 
 class SidebarButton(MDIconButton):
     pass
@@ -102,7 +104,58 @@ class AgentManagementPage(Screen):
 class AgentTrainingPage(Screen):
     def __init__(self, **kwargs):
         super(AgentTrainingPage, self).__init__(name='Agent Training', **kwargs)
-        self.add_widget(MDLabel(text="Agent Training content"))
+
+        self.agent_name = "OpenAI"
+        self.collection_number = 0
+
+        layout = BoxLayout(orientation='vertical', spacing=8, padding=8)
+
+        layout.add_widget(Label(text="Agent Training"))
+
+        mode_spinner = Spinner(text="Website")
+        mode_spinner.values = ["Website", "File", "Text", "GitHub Repository", "arXiv"]
+        mode_spinner.bind(text=self.on_mode_spinner_change)
+        layout.add_widget(mode_spinner)
+
+        advanced_options_checkbox = CheckBox()
+        advanced_options_checkbox.bind(active=self.on_advanced_options_checkbox_change)
+        layout.add_widget(advanced_options_checkbox)
+
+        self.collection_number_input = TextInput(multiline=False)
+        layout.add_widget(self.collection_number_input)
+
+        self.learn_input = TextInput(multiline=True)
+        layout.add_widget(self.learn_input)
+
+        train_button = Button(text="Train")
+        train_button.bind(on_press=self.on_train_button_press)
+        layout.add_widget(train_button)
+
+        self.add_widget(layout)
+
+    def on_mode_spinner_change(self, spinner, text):
+        self.mode = text
+
+    def on_advanced_options_checkbox_change(self, checkbox, value):
+        self.show_advanced_options = value
+
+    def on_train_button_press(self, button):
+        if self.mode == "Website":
+            # Handle training from websites
+            pass
+        elif self.mode == "File":
+            # Handle training from files
+            pass
+        elif self.mode == "Text":
+            # Handle training from text
+            pass
+        elif self.mode == "GitHub Repository":
+            # Handle training from GitHub repository
+            pass
+        elif self.mode == "arXiv":
+            # Handle training from arXiv
+            pass
+
 
 class HomeScreen(Screen):
     def __init__(self, **kwargs):

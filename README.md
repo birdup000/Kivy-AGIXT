@@ -1,7 +1,6 @@
 
-
-
-
+# Kivy AGIXT
+This is a UI for *[AGIXT](https://github.com/Josh-XT/AGiXT)*
 
 
 ## Getting Started with Kivy-AGIXT

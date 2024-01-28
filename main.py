@@ -182,15 +182,6 @@ class ChainManagementPage(Screen):
 
 
 
-
-
-
-
-
-
-
-
-
 class PromptManagementPage(Screen):
     def __init__(self, **kwargs):
         super(PromptManagementPage, self).__init__(name='Prompt Management', **kwargs)
@@ -518,18 +509,11 @@ class AgentTrainingPage(Screen):
             pass
 
 
-class HomeScreen(Screen):
-    def __init__(self, **kwargs):
-        super(HomeScreen, self).__init__(name='Home', **kwargs)
-        self.add_widget(MDLabel(text="Home content"))
 
 class MyApp(MDApp):
     def __init__(self, **kwargs):
         super(MyApp, self).__init__(**kwargs)
         self.sm = ScreenManager()
-
-        chain_management_screen = ChainManagementPage()
-        self.sm.add_widget(chain_management_screen)
 
         prompt_management_screen = PromptManagementPage()
         self.sm.add_widget(prompt_management_screen)
@@ -545,6 +529,9 @@ class MyApp(MDApp):
 
         agent_training_screen = AgentTrainingPage()
         self.sm.add_widget(agent_training_screen)
+
+        chain_management_screen = ChainManagementPage()
+        self.sm.add_widget(chain_management_screen)
 
         home_screen = HomeScreen()
         self.sm.add_widget(home_screen)
@@ -637,6 +624,8 @@ class MyApp(MDApp):
         # If the screen is found, add it to the content area
         if screen:
             self.content_area.add_widget(screen)
+
+
 
     def show_user(self, *args):
         self.change_page(ToggleButton(text="User"))

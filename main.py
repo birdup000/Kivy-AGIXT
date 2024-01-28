@@ -22,7 +22,7 @@ from kivy.uix.filechooser import FileChooserListView
 from kivy.uix.filechooser import FileChooserIconView
 import json
 import ApiClient
-from utils import build_args
+
 
 class SidebarButton(MDIconButton):
     pass
@@ -139,56 +139,41 @@ class CommandSelectionPopup(Popup):
     def on_command_name_selected(self, instance, selected_command):
         if selected_command:
             command_args = ApiClient.get_command_args(command_name=selected_command)
-            args = build_args(args=command_args, prompt=self.prompt, step_number=self.step_number)
+            args=command_args, prompt=self.prompt, step_number=self.step_number
             new_prompt = {"command_name": selected_command, **args}
             self.result = new_prompt
             self.dismiss()
 
 class ChainManagementPage(Screen):
     def __init__(self, **kwargs):
-        super(ChainManagementPage, self).__init__(name='Chain Management', **kwargs)
+        super(ChainManagementPage, self).__init__(**kwargs)
 
-        # Create a layout
-        layout = BoxLayout(orientation='vertical')
+        self.chain_name = TextInput(multiline=False)
+        self.add_widget(Label(text='Chain Name: '))
+        self.add_widget(self.chain_name)
 
-        # Create a dropdown menu
+        self.chain_file = FileChooserListView()
+        self.add_widget(Label(text='Import Chain: '))
+        self.add_widget(self.chain_file)
+
         self.chain_action = DropDown()
-
-        # Create buttons for each option and add them to the dropdown
         for action in ['Create Chain', 'Modify Chain', 'Delete Chain']:
             btn = Button(text=action, size_hint_y=None, height=44)
             btn.bind(on_release=lambda btn: self.chain_action.select(btn.text))
             self.chain_action.add_widget(btn)
 
-        # Create a button to open the dropdown
-        mainbutton = Button(text='Select Action', size_hint=(None, None))
-        mainbutton.bind(on_release=self.chain_action.open)
-        self.chain_action.bind(on_select=lambda instance, x: setattr(mainbutton, 'text', x))
+        main_button = Button(text='Select Action', size_hint=(None, None))
+        main_button.bind(on_release=self.chain_action.open)
+        self.chain_action.bind(on_select=lambda instance, x: setattr(main_button, 'text', x))
+        self.add_widget(main_button)
 
-        layout.add_widget(mainbutton)
-
-        # Create a button to open the command selection popup
         command_selection_button = Button(text='Select Command')
         command_selection_button.bind(on_release=self.show_command_selection_popup)
+        self.add_widget(command_selection_button)
 
-        layout.add_widget(command_selection_button)
-
-        # Create a text input field for the chain name
-        self.chain_name = TextInput(multiline=False)
-        layout.add_widget(Label(text='Chain Name: '))
-        layout.add_widget(self.chain_name)
-
-        # Create a file chooser for importing a chain
-        self.chain_file = FileChooserIconView()
-        layout.add_widget(Label(text='Import Chain: '))
-        layout.add_widget(self.chain_file)
-
-        # Create an action button
         self.action_button = Button(text='Perform Action')
         self.action_button.bind(on_release=self.on_action_button_pressed)
-        layout.add_widget(self.action_button)
-
-        self.add_widget(layout)
+        self.add_widget(self.action_button)
 
     def show_command_selection_popup(self, instance):
         command_selection_popup = CommandSelectionPopup(prompt={}, step_number=0)
@@ -199,17 +184,47 @@ class ChainManagementPage(Screen):
         new_prompt = instance.result
         if new_prompt:
             self.chain_name.text = new_prompt.get("command_name", "")
-            # You can update other fields based on the selected command if needed
 
     def on_action_button_pressed(self, instance):
+        chain_name = self.chain_name.text
         if self.chain_action.text == 'Create Chain':
-            # TODO: Implement chain creation logic here
-            pass
+            self.create_chain_action()
         elif self.chain_action.text == 'Modify Chain':
-            if chain_name:
-                chain = modify_chain(chain_name=chain_name, agents=agents)
+            self.modify_chain_action(chain_name)
         elif self.chain_action.text == 'Delete Chain':
+            self.delete_chain_action(chain_name)
+
+    def create_chain_action(self):
+        chain_name = self.chain_name.text
+
+        # Import Chain
+        chain_file = self.chain_file.selection and self.chain_file.selection[0]
+        if chain_file:
+            chain_name = chain_file.split(".")[0]
+            with open(chain_file, 'r') as file:
+                chain_content = file.read()
+                steps = json.loads(chain_content)
+                ApiClient.import_chain(chain_name=chain_name, steps=steps)
+                print(f"Chain '{chain_name}' added.")
+            self.chain_file.selection.clear()
+
+            if chain_name:
+                ApiClient.add_chain(chain_name=chain_name)
+                print(f"Chain '{chain_name}' created.")
+
+    def modify_chain_action(self, chain_name):
+        if chain_name:
+            agents = []  # You need to populate this list with your data
+            self.modify_chain(chain_name=chain_name, agents=agents)
+        else:
+            print("Please select a chain to manage steps.")
+
+    def delete_chain_action(self, chain_name):
+        if chain_name:
             ApiClient.delete_chain(chain_name=chain_name)
+            print(f"Chain '{chain_name}' deleted.")
+        else:
+            print("Chain name is required.")
 
 
 

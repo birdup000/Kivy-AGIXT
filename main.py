@@ -515,6 +515,10 @@ class MyApp(MDApp):
         super(MyApp, self).__init__(**kwargs)
         self.sm = ScreenManager()
 
+        bogus_screen = Screen(name='Bogus')
+        self.sm.add_widget(bogus_screen)
+        self.sm.current = 'Bogus'
+
         prompt_management_screen = PromptManagementPage()
         self.sm.add_widget(prompt_management_screen)
 

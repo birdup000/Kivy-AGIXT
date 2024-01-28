@@ -21,7 +21,14 @@ from kivy.uix.dropdown import DropDown
 from kivy.uix.filechooser import FileChooserListView
 from kivy.uix.filechooser import FileChooserIconView
 import json
-import ApiClient
+from kivy.uix.gridlayout import GridLayout
+from agixtsdk import AGiXTSDK
+
+
+
+base_uri = "http://localhost:7437"
+agixt_api_key = "your_agixt_api_key"
+ApiClient = AGiXTSDK(base_uri=base_uri, api_key=agixt_api_key)
 
 
 class SidebarButton(MDIconButton):
@@ -103,6 +110,10 @@ class HomeScreen(Screen):
 def cached_get_extensions():
     return ApiClient.get_extensions()
 
+
+
+
+
 class CommandSelectionPopup(Popup):
     def __init__(self, prompt, step_number, **kwargs):
         super(CommandSelectionPopup, self).__init__(**kwargs)
@@ -112,8 +123,9 @@ class CommandSelectionPopup(Popup):
         self.size_hint = (None, None)
         self.size = (400, 400)
 
-        self.agent_commands = cached_get_extensions()
-        self.available_commands = [command["friendly_name"] for commands in self.agent_commands for command in commands["commands"]]
+        agent_name = ApiClient.get_agents()
+        self.available_commands = ApiClient.get_commands(agent_name=agent_name)
+        self.agent_commands = self.available_commands
 
         self.command_name_dropdown = DropDown()
 
@@ -130,7 +142,7 @@ class CommandSelectionPopup(Popup):
         self.command_name_button.bind(on_release=self.command_name_dropdown.open)
         self.command_name_dropdown.bind(on_select=self.on_command_name_selected)
 
-        self.content = BoxLayout(orientation="vertical")
+        self.content = BoxLayout(orientation='vertical', spacing=10)
         self.content.add_widget(self.command_name_button)
 
     def on_command_name_selected(self, instance, selected_command):
@@ -145,30 +157,42 @@ class ChainManagementPage(Screen):
     def __init__(self, **kwargs):
         super(ChainManagementPage, self).__init__(**kwargs)
         self.name = 'Chain Management'
-        self.chain_name = TextInput(multiline=False)
-        self.add_widget(Label(text='Chain Name: '))
+
+        # Chain Name widgets
+        chain_name_label = Label(text='Chain Name:', size_hint=(None, None), height=50, pos_hint={'center_x': 0.5, 'top': 1})
+        self.chain_name = TextInput(multiline=False, size_hint=(None, None), size=(300, 40), pos_hint={'center_x': 0.5, 'top': 0.9})
+        self.add_widget(chain_name_label)
         self.add_widget(self.chain_name)
 
-        self.chain_file = FileChooserListView()
-        self.add_widget(Label(text='Import Chain: '))
+        # Import Chain widgets
+        chain_file_label = Label(text='Import Chain:', size_hint=(None, None), height=50, pos_hint={'center_x': 0.5, 'top': 0.8})
+        self.chain_file = FileChooserListView(size_hint_y=None, height=50, pos_hint={'center_x': 0.5, 'top': 0.75})
+        self.add_widget(chain_file_label)
         self.add_widget(self.chain_file)
 
+        # Chain Action widgets
+        chain_action_label = Label(text='Select Action:', size_hint=(None, None), height=50, pos_hint={'center_x': 0.5, 'top': 0.67})
         self.chain_action = DropDown()
-        for action in ['Create Chain', 'Modify Chain', 'Delete Chain']:
+
+        actions = ['Create Chain', 'Modify Chain', 'Delete Chain', 'Add Step']
+        for action in actions:
             btn = Button(text=action, size_hint_y=None, height=44)
             btn.bind(on_release=lambda btn: self.chain_action.select(btn.text))
             self.chain_action.add_widget(btn)
 
-        main_button = Button(text='Select Action', size_hint=(None, None))
+        main_button = Button(text='Select Action', size_hint=(None, None), height=44, pos_hint={'center_x': 0.5, 'top': 0.6})
         main_button.bind(on_release=self.chain_action.open)
         self.chain_action.bind(on_select=lambda instance, x: setattr(main_button, 'text', x))
+        self.add_widget(chain_action_label)
         self.add_widget(main_button)
 
-        command_selection_button = Button(text='Select Command')
+        # Command Selection Button widget
+        command_selection_button = Button(text='Select Command', size_hint_y=None, height=44, pos_hint={'center_x': 0.5, 'top': 0.5})
         command_selection_button.bind(on_release=self.show_command_selection_popup)
         self.add_widget(command_selection_button)
 
-        self.action_button = Button(text='Perform Action')
+        # Action Button widget
+        self.action_button = Button(text='Perform Action', size_hint_y=None, height=44, pos_hint={'center_x': 0.5, 'top': 0.4})
         self.action_button.bind(on_release=self.on_action_button_pressed)
         self.add_widget(self.action_button)
 
@@ -184,12 +208,16 @@ class ChainManagementPage(Screen):
 
     def on_action_button_pressed(self, instance):
         chain_name = self.chain_name.text
-        if self.chain_action.text == 'Create Chain':
+        selected_action = self.chain_action.text
+
+        if selected_action == 'Create Chain':
             self.create_chain_action()
-        elif self.chain_action.text == 'Modify Chain':
+        elif selected_action == 'Modify Chain':
             self.modify_chain_action(chain_name)
-        elif self.chain_action.text == 'Delete Chain':
+        elif selected_action == 'Delete Chain':
             self.delete_chain_action(chain_name)
+        elif selected_action == 'Add Step':
+            self.add_step_action(chain_name)
 
     def create_chain_action(self):
         chain_name = self.chain_name.text
@@ -211,7 +239,7 @@ class ChainManagementPage(Screen):
 
     def modify_chain_action(self, chain_name):
         if chain_name:
-            agents = []  # You need to populate this list with your data
+            agents = ApiClient.get_agents()
             self.modify_chain(chain_name=chain_name, agents=agents)
         else:
             print("Please select a chain to manage steps.")
@@ -222,6 +250,73 @@ class ChainManagementPage(Screen):
             print(f"Chain '{chain_name}' deleted.")
         else:
             print("Chain name is required.")
+
+    def add_step_action(self, chain_name):
+        if chain_name:
+            agents = ApiClient.get_agents()
+            chain_steps = ApiClient.get_chain(chain_name=chain_name).get("steps", [])
+            step_number = len(chain_steps) + 1
+            self.add_new_step(chain_name=chain_name, step_number=step_number, agents=agents)
+        else:
+            print("Please select a chain to add a step.")
+
+    def add_new_step(self, chain_name, step_number, agents):
+        self.ids.output_label.text = f"Add Chain Step {step_number}\n"
+
+        agent_name_dropdown = DropDown()
+        for agent in [""] + [agent["name"] for agent in agents]:
+            btn = Button(text=agent, size_hint_y=None, height=44)
+            btn.bind(on_release=lambda btn: agent_name_dropdown.select(btn.text))
+            agent_name_dropdown.add_widget(btn)
+
+        agent_name_button = Button(
+            text="Select Agent",
+            size_hint=(None, None),
+            height=44,
+        )
+        agent_name_button.bind(on_release=agent_name_dropdown.open)
+        agent_name_dropdown.bind(on_select=lambda instance, x: setattr(agent_name_button, 'text', x))
+
+        prompt_categories_dropdown = DropDown()
+        for prompt_type in [""] + ["Command", "Prompt", "Chain"]:
+            btn = Button(text=prompt_type, size_hint_y=None, height=44)
+            btn.bind(on_release=lambda btn: prompt_categories_dropdown.select(btn.text))
+            prompt_categories_dropdown.add_widget(btn)
+
+        prompt_categories_button = Button(
+            text="Select Step Type",
+            size_hint=(None, None),
+            height=44,
+        )
+        prompt_categories_button.bind(on_release=prompt_categories_dropdown.open)
+        prompt_categories_dropdown.bind(on_select=lambda instance, x: setattr(prompt_categories_button, 'text', x))
+
+        add_step_button = Button(
+            text="Add New Step",
+            size_hint=(None, None),
+            height=44,
+        )
+        add_step_button.bind(on_release=lambda instance: self.perform_add_step(chain_name, step_number, agent_name_button.text, prompt_categories_button.text))
+
+        self.ids.output_label.add_widget(agent_name_button)
+        self.ids.output_label.add_widget(prompt_categories_button)
+        self.ids.output_label.add_widget(add_step_button)
+
+    def perform_add_step(self, chain_name, step_number, agent_name, prompt_type):
+        if chain_name and step_number and agent_name and prompt_type:
+            ApiClient.add_step(
+                chain_name=chain_name,
+                step_number=step_number,
+                agent_name=agent_name,
+                prompt_categories=ApiClient.get_prompt_categories(),
+                prompt={},  # You may need to modify this part based on your actual implementation
+            )
+            self.ids.output_label.text = f"Step added to chain '{chain_name}'."
+        else:
+            self.ids.output_label.text = "All fields are required."
+
+
+
 
 
 

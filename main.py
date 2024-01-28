@@ -99,9 +99,9 @@ class HomeScreen(Screen):
 
 
 
+
 def cached_get_extensions():
     return ApiClient.get_extensions()
-
 
 class CommandSelectionPopup(Popup):
     def __init__(self, prompt, step_number, **kwargs):
@@ -113,10 +113,7 @@ class CommandSelectionPopup(Popup):
         self.size = (400, 400)
 
         self.agent_commands = cached_get_extensions()
-        self.available_commands = []
-        for commands in self.agent_commands:
-            for command in commands["commands"]:
-                self.available_commands.append(command["friendly_name"])
+        self.available_commands = [command["friendly_name"] for commands in self.agent_commands for command in commands["commands"]]
 
         self.command_name_dropdown = DropDown()
 
@@ -139,7 +136,7 @@ class CommandSelectionPopup(Popup):
     def on_command_name_selected(self, instance, selected_command):
         if selected_command:
             command_args = ApiClient.get_command_args(command_name=selected_command)
-            args=command_args, prompt=self.prompt, step_number=self.step_number
+            args = command_args, prompt=self.prompt, step_number=self.step_number
             new_prompt = {"command_name": selected_command, **args}
             self.result = new_prompt
             self.dismiss()
@@ -147,7 +144,7 @@ class CommandSelectionPopup(Popup):
 class ChainManagementPage(Screen):
     def __init__(self, **kwargs):
         super(ChainManagementPage, self).__init__(**kwargs)
-
+        self.name = 'Chain Management'
         self.chain_name = TextInput(multiline=False)
         self.add_widget(Label(text='Chain Name: '))
         self.add_widget(self.chain_name)
@@ -225,6 +222,7 @@ class ChainManagementPage(Screen):
             print(f"Chain '{chain_name}' deleted.")
         else:
             print("Chain name is required.")
+
 
 
 

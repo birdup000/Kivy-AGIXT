@@ -21,7 +21,8 @@ from kivy.uix.dropdown import DropDown
 from kivy.uix.filechooser import FileChooserListView
 from kivy.uix.filechooser import FileChooserIconView
 import json
-
+import ApiClient
+from utils import build_args
 
 class SidebarButton(MDIconButton):
     pass
@@ -96,37 +97,52 @@ class HomeScreen(Screen):
 
         
 
-class ApiClient:
-    @staticmethod
-    def get_chains():
-        # Implement your logic here
-        return []
-
-    @staticmethod
-    def get_agents():
-        # Implement your logic here
-        return []
-
-    @staticmethod
-    def import_chain(chain_name, steps):
-        # Implement your logic here
-        pass
-
-    @staticmethod
-    def delete_chain(chain_name):
-        # Implement your logic here
-        pass
-
-def predefined_injection_variables():
-    # Implement your logic here
-    pass
-
-def modify_chain(chain_name, agents):
-    # Implement your logic here
-    pass
 
 
+def cached_get_extensions():
+    return ApiClient.get_extensions()
 
+
+class CommandSelectionPopup(Popup):
+    def __init__(self, prompt, step_number, **kwargs):
+        super(CommandSelectionPopup, self).__init__(**kwargs)
+        self.prompt = prompt
+        self.step_number = step_number
+        self.title = "Select Command"
+        self.size_hint = (None, None)
+        self.size = (400, 400)
+
+        self.agent_commands = cached_get_extensions()
+        self.available_commands = []
+        for commands in self.agent_commands:
+            for command in commands["commands"]:
+                self.available_commands.append(command["friendly_name"])
+
+        self.command_name_dropdown = DropDown()
+
+        for command in [""] + self.available_commands:
+            btn = Button(text=command, size_hint_y=None, height=44)
+            btn.bind(on_release=lambda btn: self.command_name_dropdown.select(btn.text))
+            self.command_name_dropdown.add_widget(btn)
+
+        self.command_name_button = Button(
+            text="Select Command",
+            size_hint=(None, None),
+            height=44,
+        )
+        self.command_name_button.bind(on_release=self.command_name_dropdown.open)
+        self.command_name_dropdown.bind(on_select=self.on_command_name_selected)
+
+        self.content = BoxLayout(orientation="vertical")
+        self.content.add_widget(self.command_name_button)
+
+    def on_command_name_selected(self, instance, selected_command):
+        if selected_command:
+            command_args = ApiClient.get_command_args(command_name=selected_command)
+            args = build_args(args=command_args, prompt=self.prompt, step_number=self.step_number)
+            new_prompt = {"command_name": selected_command, **args}
+            self.result = new_prompt
+            self.dismiss()
 
 class ChainManagementPage(Screen):
     def __init__(self, **kwargs):
@@ -151,6 +167,12 @@ class ChainManagementPage(Screen):
 
         layout.add_widget(mainbutton)
 
+        # Create a button to open the command selection popup
+        command_selection_button = Button(text='Select Command')
+        command_selection_button.bind(on_release=self.show_command_selection_popup)
+
+        layout.add_widget(command_selection_button)
+
         # Create a text input field for the chain name
         self.chain_name = TextInput(multiline=False)
         layout.add_widget(Label(text='Chain Name: '))
@@ -168,16 +190,26 @@ class ChainManagementPage(Screen):
 
         self.add_widget(layout)
 
+    def show_command_selection_popup(self, instance):
+        command_selection_popup = CommandSelectionPopup(prompt={}, step_number=0)
+        command_selection_popup.bind(on_dismiss=self.on_command_selection_popup_dismiss)
+        command_selection_popup.open()
+
+    def on_command_selection_popup_dismiss(self, instance):
+        new_prompt = instance.result
+        if new_prompt:
+            self.chain_name.text = new_prompt.get("command_name", "")
+            # You can update other fields based on the selected command if needed
+
     def on_action_button_pressed(self, instance):
         if self.chain_action.text == 'Create Chain':
             # TODO: Implement chain creation logic here
             pass
         elif self.chain_action.text == 'Modify Chain':
-            # TODO: Implement chain modification logic here
-            pass
+            if chain_name:
+                chain = modify_chain(chain_name=chain_name, agents=agents)
         elif self.chain_action.text == 'Delete Chain':
-            # TODO: Implement chain deletion logic here
-            pass
+            ApiClient.delete_chain(chain_name=chain_name)
 
 
 

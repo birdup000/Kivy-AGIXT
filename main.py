@@ -113,7 +113,6 @@ def cached_get_extensions():
 
 
 
-
 class CommandSelectionPopup(Popup):
     def __init__(self, prompt, step_number, **kwargs):
         super(CommandSelectionPopup, self).__init__(**kwargs)
@@ -124,15 +123,18 @@ class CommandSelectionPopup(Popup):
         self.size = (400, 400)
 
         agent_name = ApiClient.get_agents()
+        if agent_name is None:
+            agent_name = ""  # Set a default value if agent_name is None
         self.available_commands = ApiClient.get_commands(agent_name=agent_name)
         self.agent_commands = self.available_commands
 
         self.command_name_dropdown = DropDown()
 
-        for command in [""] + self.available_commands:
-            btn = Button(text=command, size_hint_y=None, height=44)
-            btn.bind(on_release=lambda btn: self.command_name_dropdown.select(btn.text))
-            self.command_name_dropdown.add_widget(btn)
+        if self.available_commands is not None:
+            for command in [""] + self.available_commands:
+                btn = Button(text=command, size_hint_y=None, height=44)
+                btn.bind(on_release=lambda btn: self.command_name_dropdown.select(btn.text))
+                self.command_name_dropdown.add_widget(btn)
 
         self.command_name_button = Button(
             text="Select Command",
@@ -148,10 +150,15 @@ class CommandSelectionPopup(Popup):
     def on_command_name_selected(self, instance, selected_command):
         if selected_command:
             command_args = ApiClient.get_command_args(command_name=selected_command)
-            args = command_args, prompt=self.prompt, step_number=self.step_number
+            if isinstance(command_args, str):
+                command_args = [command_args]
+            args = [command_args, {"prompt": self.prompt, "step_number": self.step_number}]
             new_prompt = {"command_name": selected_command, **args}
-            self.result = new_prompt
+            self.result = [new_prompt]
             self.dismiss()
+
+
+
 
 class ChainManagementPage(Screen):
     def __init__(self, **kwargs):

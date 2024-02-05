@@ -564,7 +564,7 @@ class AgentManagementPage(Screen):
         self.extension_setting_keys = []
 
         agent_settings = agent_config.get("settings", {})
-        embedder_name = agent_settings.get("embedder", "default")
+        self.embedder_name = agent_settings.get("embedder", "default")
         self.commands = agent_config.get("commands", {})
 
         self.header_label = Label(text="Agent Management", font_size=24)
@@ -647,7 +647,7 @@ class AgentManagementPage(Screen):
         self.provider_name = text
         self.update_provider_settings()
 
-    def update_agent_settings(self):
+    def update_agent_settings(self, instance):
         ApiClient.update_agent_settings(
             agent_name=self.agent_name, settings=self.agent_settings
         )
@@ -659,7 +659,7 @@ class AgentManagementPage(Screen):
         else:
             print("No agent selected.")
 
-    def delete_agent(self):
+    def delete_agent(self, instance):
         ApiClient.delete_agent(agent_name=self.agent_name)
         pass
 
@@ -689,10 +689,7 @@ class AgentManagementPage(Screen):
         if "WEBSEARCH_TIMEOUT" not in self.agent_settings:
             self.agent_settings["WEBSEARCH_TIMEOUT"] = 0
         websearch_timeout = TextInput(
-            text=str(self.agent_settings["WEBSEARCH_TIMEOUT"]),
-            description="Websearch Timeout in seconds. Set to 0 to disable the timeout and allow the AI to search until it feels it is done.",
-            value=int(self.agent_settings["WEBSEARCH_TIMEOUT"]),
-            key="WEBSEARCH_TIMEOUT",
+            text=str(self.agent_settings["WEBSEARCH_TIMEOUT"])
         )
 
         for setting_name, setting_value in self.agent_settings.items():

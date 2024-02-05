@@ -600,6 +600,19 @@ class AgentManagementPage(Screen):
         self.layout.add_widget(self.wipe_memories_button)
         self.layout.add_widget(self.delete_agent_button)
 
+        # Display commands
+        self.display_commands()
+
+    def display_commands(self):
+        for command_name, command_value in self.commands.items():
+            command_box = BoxLayout(orientation='horizontal')
+            command_checkbox = CheckBox(size_hint_y=None, height=150, active=command_value)
+            command_checkbox.bind(active=self.on_command_checkbox_change)
+            command_label = Label(text=command_name)
+            command_box.add_widget(command_checkbox)
+            command_box.add_widget(command_label)
+            self.agent_settings_layout.add_widget(command_box)
+
     def on_agent_spinner_change(self, spinner, text):
         self.agent_name = text
         self.load_agent_configuration()
@@ -672,12 +685,13 @@ class AgentManagementPage(Screen):
         agent_config = ApiClient.get_agentconfig(agent_name=self.agent_name)
         if isinstance(agent_config, dict):
             agent_settings = agent_config.get("settings", {})
-            agent_settings[checkbox.text] = value
+            setting_name = checkbox.text
+            agent_settings[setting_name] = value
         else:
             print("Invalid agent configuration")
 
     def add_command_checkbox(self, command_name, command_value):
-        checkbox = CheckBox(size_hint_y=None, height=40, active=command_value)
+        checkbox = CheckBox(size_hint_y=None, height=40, active=command_value, text=command_name)
         checkbox.bind(active=self.on_command_checkbox_change)
         self.agent_settings_layout.add_widget(checkbox)
 

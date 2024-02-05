@@ -23,7 +23,9 @@ from kivy.uix.filechooser import FileChooserIconView
 import json
 from kivy.uix.gridlayout import GridLayout
 from agixtsdk import AGiXTSDK
-
+from kivy.uix.checkbox import CheckBox
+from kivy.uix.textinput import TextInput
+import Listen
 
 
 base_uri = "http://localhost:7437"
@@ -47,6 +49,9 @@ class SidebarTextButton(MDBoxLayout):
 class AgentInteractionsPage(Screen):
     def __init__(self, **kwargs):
         super(AgentInteractionsPage, self).__init__(name='Agent Interactions', **kwargs)
+        agents = ApiClient.get_agents()
+        agent_name = [agent['name'] for agent in agents]
+        agent_config = ApiClient.get_agentconfig(agent_name=agent_name)
 
         self.agent_name = "OpenAI"
         self.conversation = "default_conversation"
@@ -64,10 +69,10 @@ class AgentInteractionsPage(Screen):
         mode_spinner.bind(text=self.on_mode_spinner_change)
         layout.add_widget(mode_spinner)
 
-        layout.add_widget(MDLabel(text="Agent Name"))
-        agent_name_spinner = Spinner(values=["Agent1", "Agent2", "Agent3"], text=self.agent_name)
-        agent_name_spinner.bind(text=self.on_agent_spinner_change)
-        layout.add_widget(agent_name_spinner)
+        self.agent_selection_spinner = Spinner(text="Select Agent")
+        self.agent_selection_spinner.values = agent_name
+        self.agent_selection_spinner.bind(text=self.on_agent_spinner_change)
+        layout.add_widget(self.agent_selection_spinner)
 
         layout.add_widget(MDLabel(text="User Input"))
         self.user_input_text = TextInput(multiline=True)
@@ -125,13 +130,14 @@ class CommandSelectionPopup(Popup):
         agent_name = ApiClient.get_agents()
         if agent_name is None:
             agent_name = ""  # Set a default value if agent_name is None
-        self.available_commands = ApiClient.get_commands(agent_name=agent_name)
+        self.agent_name = agent_name  # Assign agent_name to instance variable
+        self.available_commands = ApiClient.get_commands(agent_name=self.agent_name)  # Access instance variable
         self.agent_commands = self.available_commands
 
         self.command_name_dropdown = DropDown()
 
         if self.available_commands is not None:
-            for command in [""] + self.available_commands:
+            for command in [""] + list(self.available_commands):
                 btn = Button(text=command, size_hint_y=None, height=44)
                 btn.bind(on_release=lambda btn: self.command_name_dropdown.select(btn.text))
                 self.command_name_dropdown.add_widget(btn)
@@ -152,7 +158,7 @@ class CommandSelectionPopup(Popup):
             command_args = ApiClient.get_command_args(command_name=selected_command)
             if isinstance(command_args, str):
                 command_args = [command_args]
-            args = [command_args, {"prompt": self.prompt, "step_number": self.step_number}]
+            args = [list(command_args), {"prompt": self.prompt, "step_number": self.step_number}]
             new_prompt = {"command_name": selected_command, **args}
             self.result = [new_prompt]
             self.dismiss()
@@ -519,19 +525,41 @@ class MemoryManagementPage(Screen):
 class AgentManagementPage(Screen):
     def __init__(self, **kwargs):
         super(AgentManagementPage, self).__init__(name='Agent Management', **kwargs)
-        self.agent_name = ""
+        self.agent_name = "" 
+        agents = ApiClient.get_agents()
+        agent_names = [agent['name'] for agent in agents]
         self.provider_name = ""
-        self.agent_settings = {}
+        agent_config = ApiClient.get_agentconfig(agent_name=agent_names[0])
+        if isinstance(agent_config, str):
+            agent_config = json.loads(agent_config)
         self.extension_settings = {}
-        self.available_commands = {}
+        commands = ApiClient.get_commands(agent_name=agent_names[0])
+        if isinstance(commands, str):
+            commands = json.loads(commands)
+
+        def get_providers():
+            return ApiClient.get_providers()
+
+        def provider_settings(provider_name: str):
+            return ApiClient.get_provider_settings(provider_name=provider_name)
+
+        def get_extension_settings():
+            return ApiClient.get_extension_settings()
+
         self.extension_setting_keys = []
+
+        agent_settings = agent_config
+
+        embedder_name = agent_settings.get("embedder", "default")
+
+        self.commands = agent_config.get("commands", {})
 
         self.layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
         self.header_label = Label(text="Agent Management", font_size=24)
         self.layout.add_widget(self.header_label)
 
         self.agent_selection_spinner = Spinner(text="Select Agent")
-        self.agent_selection_spinner.values = ["Agent1", "Agent2", "Agent3"]  # Replace with your actual agent names
+        self.agent_selection_spinner.values = agent_names
         self.agent_selection_spinner.bind(text=self.on_agent_spinner_change)
         self.layout.add_widget(self.agent_selection_spinner)
 
@@ -543,7 +571,8 @@ class AgentManagementPage(Screen):
         self.layout.add_widget(self.agent_actions_layout)
 
         self.provider_selection_spinner = Spinner(text="Select Provider")
-        self.provider_selection_spinner.values = ["Provider1", "Provider2", "Provider3"]  # Replace with your actual providers
+        providers = ApiClient.get_providers()
+        self.provider_selection_spinner.values = providers
         self.provider_selection_spinner.bind(text=self.on_provider_spinner_change)
         self.layout.add_widget(self.provider_selection_spinner)
 
@@ -567,37 +596,148 @@ class AgentManagementPage(Screen):
         self.load_agent_configuration()
 
     def import_agent(self, instance):
-        # Implement import agent functionality
-        pass
+        file_chooser = FileChooserListView(filters=["*.json"])
+        file_chooser.bind(selection=self.on_file_selected)
+        self.add_widget(file_chooser)
+
+    def on_file_selected(self, file_chooser, selection):
+        selected_file = selection and selection[0] or None
+        if selected_file:
+            with open(selected_file, "r") as agent_file:
+                agent_settings = agent_file.read()
+                try:
+                    agent_config = json.loads(agent_settings)
+                except json.JSONDecodeError:
+                    print("Invalid JSON in selected file.")
+                    return
+            pass
+
+    def add_agent(self, agent_name, settings):
+        agent_name = "test_agent"
+        add_agent_resp = ApiClient.add_agent(agent_name=agent_name, settings=settings)
+        return add_agent_resp
 
     def add_agent(self, instance):
-        # Implement add agent functionality
-        pass
+        agent_name = "test_agent"
+        settings = {
+            "provider": "gpt4free",
+            "embedder": "default",
+            "AI_MODEL": "gpt-3.5-turbo",
+            "AI_TEMPERATURE": "0.7",
+            "AI_TOP_P": "1",
+            "MAX_TOKENS": "4096",
+            "helper_agent_name": "OpenAI",
+            "WEBSEARCH_TIMEOUT": 0,
+            "WAIT_BETWEEN_REQUESTS": 1,
+            "WAIT_AFTER_FAILURE": 3,
+            "stream": False,
+            "WORKING_DIRECTORY": "./WORKSPACE",
+            "WORKING_DIRECTORY_RESTRICTED": True,
+            "AUTONOMOUS_EXECUTION": False,
+        }
+        agent_name = "test_agent"  # Define the agent_name variable
+        add_agent_resp = ApiClient.add_agent(agent_name=agent_name, settings=settings)
+        return add_agent_resp
 
-    def on_provider_spinner_change(self, spinner, text):
+    def on_provider_spinner_change(self, text):
         self.provider_name = text
         # Update provider settings in UI
         self.update_provider_settings()
 
-    def update_provider_settings(self):
-        # Implement updating provider settings in the UI
-        pass
-
-    def update_agent_settings(self, instance):
-        # Implement updating agent settings
+    def update_agent_settings(self):
+        ApiClient.update_agent_settings(
+            agent_name=self.agent_name, settings=self.agent_settings
+        )
         pass
 
     def wipe_agent_memories(self, instance):
-        # Implement wiping agent memories
+        if self.agent_name:
+            ApiClient.wipe_agent_memories(agent_name=self.agent_name)
+        else:
+            print("No agent selected.")
+
+    def delete_agent(self):
+        ApiClient.delete_agent(agent_name=self.agent_name)
         pass
 
-    def delete_agent(self, instance):
-        # Implement deleting agent
+
+    def add_agent_setting_checkbox(self, setting_name, setting_value):
+        checkbox = CheckBox(size_hint_y=None, height=40, active=setting_value)
+        checkbox.bind(active=self.on_agent_setting_checkbox_change)
+
+
+def on_provider_spinner_change(self, spinner, text):
+    self.provider_name = text
+    # Update provider settings in UI
+    self.update_provider_settings()
+
+    def update_agent_settings(self):
+        ApiClient.update_agent_settings(
+            agent_name=self.agent_name, settings=self.agent_settings
+        )
         pass
 
-    def load_agent_configuration(self):
-        # Implement loading agent configuration and updating UI
+    def wipe_agent_memories(self, instance):
+        if self.agent_name:
+            ApiClient.wipe_agent_memories(agent_name=self.agent_name)
+        else:
+            print("No agent selected.")
+
+    def delete_agent(self):
+        ApiClient.delete_agent(agent_name=self.agent_name)
         pass
+
+
+    def add_agent_setting_checkbox(self, setting_name, setting_value):
+        checkbox = CheckBox(size_hint_y=None, height=40, active=setting_value)
+        checkbox.bind(active=self.on_agent_setting_checkbox_change)
+        self.agent_settings_layout.add_widget(checkbox)
+
+    def on_agent_setting_checkbox_change(self, checkbox, value):
+        # Handle agent setting checkbox change
+        agent_config = ApiClient.get_agentconfig(agent_name=self.agent_name)
+        if isinstance(agent_config, dict):
+            agent_settings = agent_config.get("settings", {})
+            agent_settings[checkbox.text] = value  # Update the agent_settings with the checkbox value
+        else:
+            print("Invalid agent configuration")
+
+    def add_command_checkbox(self, command_name, command_value):
+        checkbox = CheckBox(size_hint_y=None, height=40, active=command_value)
+        checkbox.bind(active=self.on_command_checkbox_change)
+        self.agent_settings_layout.add_widget(checkbox)
+
+    def on_command_checkbox_change(self, checkbox, value):
+        # Handle command checkbox change
+        self.commands[checkbox.text] = value
+
+    def update_provider_settings(self):
+        # Implement updating provider settings in the UI
+        self.agent_settings["embedder"] = self.embedder_name  # Update the agent_settings with the selected embedder
+        if "WEBSEARCH_TIMEOUT" not in self.agent_settings:
+            self.agent_settings["WEBSEARCH_TIMEOUT"] = 0
+        websearch_timeout = TextInput(
+            text=str(self.agent_settings["WEBSEARCH_TIMEOUT"]),
+            description="Websearch Timeout in seconds. Set to 0 to disable the timeout and allow the AI to search until it feels it is done.",
+            value=int(self.agent_settings["WEBSEARCH_TIMEOUT"]),
+            key="WEBSEARCH_TIMEOUT",
+        )
+
+        # Add checkboxes for agent settings
+        for setting_name, setting_value in self.agent_settings.items():
+            self.add_agent_setting_checkbox(setting_name, setting_value)
+
+        # Add checkboxes for commands
+        for command_name, command_value in self.commands.items():
+            self.add_command_checkbox(command_name, command_value)
+
+
+
+
+
+
+
+
 
 
 class AgentTrainingPage(Screen):
@@ -656,6 +796,13 @@ class AgentTrainingPage(Screen):
             pass
 
 
+class VoiceScreenPage(Screen):
+    def __init__(self, **kwargs):
+        super(VoiceScreenPage, self).__init__(name='Voice', **kwargs)
+        self.add_widget(Label(text="Voice Screen"))
+        
+
+
 
 class MyApp(MDApp):
     def __init__(self, **kwargs):
@@ -683,6 +830,9 @@ class MyApp(MDApp):
 
         chain_management_screen = ChainManagementPage()
         self.sm.add_widget(chain_management_screen)
+
+        voice_screen = VoiceScreenPage()
+        self.sm.add_widget(voice_screen)
 
         home_screen = HomeScreen()
         self.sm.add_widget(home_screen)
@@ -738,7 +888,7 @@ class MyApp(MDApp):
     def create_radio_buttons(self):
         box = BoxLayout(orientation='vertical')
 
-        for page_name in ["Home", "Agent Interactions", "Agent Training", "Agent Management", "Memory Management", "Prompt Management", "Chain Management"]:
+        for page_name in ["Home", "Agent Interactions", "Agent Training", "Agent Management", "Memory Management", "Prompt Management", "Chain Management", "Voice"]:
             rb = ToggleButton(group='pages', size_hint=(1, None), height=30)
             rb.text = page_name
             rb.bind(on_press=self.change_page)

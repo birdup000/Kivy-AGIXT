@@ -26,6 +26,7 @@ from agixtsdk import AGiXTSDK
 from kivy.uix.checkbox import CheckBox
 from kivy.uix.textinput import TextInput
 import Listen
+import time
 
 
 base_uri = "http://localhost:7437"
@@ -525,17 +526,31 @@ class MemoryManagementPage(Screen):
 class AgentManagementPage(Screen):
     def __init__(self, **kwargs):
         super(AgentManagementPage, self).__init__(name='Agent Management', **kwargs)
-        self.agent_name = "" 
+        self.agent_name = ""
+        self.provider_name = ""
+        self.agent_settings = {}
+        self.layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
+        self.add_widget(self.layout)
+
+        self.load_agent_configuration()
+
+    def load_agent_configuration(self):
         agents = ApiClient.get_agents()
         agent_names = [agent['name'] for agent in agents]
-        self.provider_name = ""
         agent_config = ApiClient.get_agentconfig(agent_name=agent_names[0])
-        if isinstance(agent_config, str):
-            agent_config = json.loads(agent_config)
-        self.extension_settings = {}
-        commands = ApiClient.get_commands(agent_name=agent_names[0])
-        if isinstance(commands, str):
-            commands = json.loads(commands)
+        if agent_config is not None:
+            if isinstance(agent_config, str):
+                agent_config = json.loads(agent_config)
+            self.extension_settings = {}
+            commands = ApiClient.get_commands(agent_name=agent_names[0])
+            if commands is not None:
+                if isinstance(commands, str):
+                    commands = json.loads(commands)
+            else:
+                commands = {}
+        else:
+            agent_config = {}
+            commands = {}
 
         def get_providers():
             return ApiClient.get_providers()
@@ -548,18 +563,15 @@ class AgentManagementPage(Screen):
 
         self.extension_setting_keys = []
 
-        agent_settings = agent_config
-
+        agent_settings = agent_config.get("settings", {})
         embedder_name = agent_settings.get("embedder", "default")
-
         self.commands = agent_config.get("commands", {})
 
-        self.layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
         self.header_label = Label(text="Agent Management", font_size=24)
         self.layout.add_widget(self.header_label)
 
         self.agent_selection_spinner = Spinner(text="Select Agent")
-        self.agent_selection_spinner.values = agent_names
+        self.agent_selection_spinner.values = agent_names if agent_names is not None else []
         self.agent_selection_spinner.bind(text=self.on_agent_spinner_change)
         self.layout.add_widget(self.agent_selection_spinner)
 
@@ -571,8 +583,8 @@ class AgentManagementPage(Screen):
         self.layout.add_widget(self.agent_actions_layout)
 
         self.provider_selection_spinner = Spinner(text="Select Provider")
-        providers = ApiClient.get_providers()
-        self.provider_selection_spinner.values = providers
+        providers = get_providers()  # Fix: Call the function without self.
+        self.provider_selection_spinner.values = providers if providers is not None else []
         self.provider_selection_spinner.bind(text=self.on_provider_spinner_change)
         self.layout.add_widget(self.provider_selection_spinner)
 
@@ -588,11 +600,8 @@ class AgentManagementPage(Screen):
         self.layout.add_widget(self.wipe_memories_button)
         self.layout.add_widget(self.delete_agent_button)
 
-        self.add_widget(self.layout)
-
     def on_agent_spinner_change(self, spinner, text):
         self.agent_name = text
-        # Load agent configuration and update UI
         self.load_agent_configuration()
 
     def import_agent(self, instance):
@@ -612,11 +621,6 @@ class AgentManagementPage(Screen):
                     return
             pass
 
-    def add_agent(self, agent_name, settings):
-        agent_name = "test_agent"
-        add_agent_resp = ApiClient.add_agent(agent_name=agent_name, settings=settings)
-        return add_agent_resp
-
     def add_agent(self, instance):
         agent_name = "test_agent"
         settings = {
@@ -635,13 +639,12 @@ class AgentManagementPage(Screen):
             "WORKING_DIRECTORY_RESTRICTED": True,
             "AUTONOMOUS_EXECUTION": False,
         }
-        agent_name = "test_agent"  # Define the agent_name variable
+        agent_name = "test_agent"
         add_agent_resp = ApiClient.add_agent(agent_name=agent_name, settings=settings)
         return add_agent_resp
 
-    def on_provider_spinner_change(self, text):
+    def on_provider_spinner_change(self, spinner, text):
         self.provider_name = text
-        # Update provider settings in UI
         self.update_provider_settings()
 
     def update_agent_settings(self):
@@ -660,45 +663,16 @@ class AgentManagementPage(Screen):
         ApiClient.delete_agent(agent_name=self.agent_name)
         pass
 
-
-    def add_agent_setting_checkbox(self, setting_name, setting_value):
-        checkbox = CheckBox(size_hint_y=None, height=40, active=setting_value)
-        checkbox.bind(active=self.on_agent_setting_checkbox_change)
-
-
-def on_provider_spinner_change(self, spinner, text):
-    self.provider_name = text
-    # Update provider settings in UI
-    self.update_provider_settings()
-
-    def update_agent_settings(self):
-        ApiClient.update_agent_settings(
-            agent_name=self.agent_name, settings=self.agent_settings
-        )
-        pass
-
-    def wipe_agent_memories(self, instance):
-        if self.agent_name:
-            ApiClient.wipe_agent_memories(agent_name=self.agent_name)
-        else:
-            print("No agent selected.")
-
-    def delete_agent(self):
-        ApiClient.delete_agent(agent_name=self.agent_name)
-        pass
-
-
     def add_agent_setting_checkbox(self, setting_name, setting_value):
         checkbox = CheckBox(size_hint_y=None, height=40, active=setting_value)
         checkbox.bind(active=self.on_agent_setting_checkbox_change)
         self.agent_settings_layout.add_widget(checkbox)
 
     def on_agent_setting_checkbox_change(self, checkbox, value):
-        # Handle agent setting checkbox change
         agent_config = ApiClient.get_agentconfig(agent_name=self.agent_name)
         if isinstance(agent_config, dict):
             agent_settings = agent_config.get("settings", {})
-            agent_settings[checkbox.text] = value  # Update the agent_settings with the checkbox value
+            agent_settings[checkbox.text] = value
         else:
             print("Invalid agent configuration")
 
@@ -708,12 +682,10 @@ def on_provider_spinner_change(self, spinner, text):
         self.agent_settings_layout.add_widget(checkbox)
 
     def on_command_checkbox_change(self, checkbox, value):
-        # Handle command checkbox change
         self.commands[checkbox.text] = value
 
     def update_provider_settings(self):
-        # Implement updating provider settings in the UI
-        self.agent_settings["embedder"] = self.embedder_name  # Update the agent_settings with the selected embedder
+        self.agent_settings["embedder"] = self.embedder_name
         if "WEBSEARCH_TIMEOUT" not in self.agent_settings:
             self.agent_settings["WEBSEARCH_TIMEOUT"] = 0
         websearch_timeout = TextInput(
@@ -723,11 +695,9 @@ def on_provider_spinner_change(self, spinner, text):
             key="WEBSEARCH_TIMEOUT",
         )
 
-        # Add checkboxes for agent settings
         for setting_name, setting_value in self.agent_settings.items():
             self.add_agent_setting_checkbox(setting_name, setting_value)
 
-        # Add checkboxes for commands
         for command_name, command_value in self.commands.items():
             self.add_command_checkbox(command_name, command_value)
 
@@ -884,6 +854,8 @@ class MyApp(MDApp):
         self.change_page(ToggleButton(text="Home"))
 
         return main_layout
+    
+        
 
     def create_radio_buttons(self):
         box = BoxLayout(orientation='vertical')
@@ -937,5 +909,4 @@ class MyApp(MDApp):
     def show_help(self, *args):
         self.change_page(ToggleButton(text="Help"))
 
-if __name__ == "__main__":
-    MyApp().run()
+MyApp().run()

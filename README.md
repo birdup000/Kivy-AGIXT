@@ -11,6 +11,12 @@ Before running the application, make sure you have the following installed:
 
 - [Python](https://www.python.org/) (version 3.6 or higher)
 
+# Linux Packages needed (Fedora Package listed below for pyaudio will add other packages for other distros/os)
+```bash
+sudo dnf install portaudio-devel
+```
+
+
 # pip packages
 ```bash
 pip install kivy

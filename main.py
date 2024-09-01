@@ -21,6 +21,17 @@ from kivy.uix.dropdown import DropDown
 from kivy.uix.filechooser import FileChooserListView
 from kivy.uix.filechooser import FileChooserIconView
 import json
+from kivy.uix.gridlayout import GridLayout
+from agixtsdk import AGiXTSDK
+from kivy.uix.checkbox import CheckBox
+from kivy.uix.textinput import TextInput
+import Listen
+import time
+
+
+base_uri = "http://localhost:7437"
+agixt_api_key = "your_agixt_api_key"
+ApiClient = AGiXTSDK(base_uri=base_uri, api_key=agixt_api_key)
 
 
 class SidebarButton(MDIconButton):
@@ -39,6 +50,9 @@ class SidebarTextButton(MDBoxLayout):
 class AgentInteractionsPage(Screen):
     def __init__(self, **kwargs):
         super(AgentInteractionsPage, self).__init__(name='Agent Interactions', **kwargs)
+        agents = ApiClient.get_agents()
+        agent_name = [agent['name'] for agent in agents]
+        agent_config = ApiClient.get_agentconfig(agent_name=agent_name)
 
         self.agent_name = "OpenAI"
         self.conversation = "default_conversation"
@@ -56,10 +70,10 @@ class AgentInteractionsPage(Screen):
         mode_spinner.bind(text=self.on_mode_spinner_change)
         layout.add_widget(mode_spinner)
 
-        layout.add_widget(MDLabel(text="Agent Name"))
-        agent_name_spinner = Spinner(values=["Agent1", "Agent2", "Agent3"], text=self.agent_name)
-        agent_name_spinner.bind(text=self.on_agent_spinner_change)
-        layout.add_widget(agent_name_spinner)
+        self.agent_selection_spinner = Spinner(text="Select Agent")
+        self.agent_selection_spinner.values = agent_name
+        self.agent_selection_spinner.bind(text=self.on_agent_spinner_change)
+        layout.add_widget(self.agent_selection_spinner)
 
         layout.add_widget(MDLabel(text="User Input"))
         self.user_input_text = TextInput(multiline=True)
@@ -96,88 +110,228 @@ class HomeScreen(Screen):
 
         
 
-class ApiClient:
-    @staticmethod
-    def get_chains():
-        # Implement your logic here
-        return []
 
-    @staticmethod
-    def get_agents():
-        # Implement your logic here
-        return []
 
-    @staticmethod
-    def import_chain(chain_name, steps):
-        # Implement your logic here
-        pass
 
-    @staticmethod
-    def delete_chain(chain_name):
-        # Implement your logic here
-        pass
+def cached_get_extensions():
+    return ApiClient.get_extensions()
 
-def predefined_injection_variables():
-    # Implement your logic here
-    pass
 
-def modify_chain(chain_name, agents):
-    # Implement your logic here
-    pass
+
+
+class CommandSelectionPopup(Popup):
+    def __init__(self, prompt, step_number, **kwargs):
+        super(CommandSelectionPopup, self).__init__(**kwargs)
+        self.prompt = prompt
+        self.step_number = step_number
+        self.title = "Select Command"
+        self.size_hint = (None, None)
+        self.size = (400, 400)
+
+        agent_name = ApiClient.get_agents()
+        if agent_name is None:
+            agent_name = ""  # Set a default value if agent_name is None
+        self.agent_name = agent_name  # Assign agent_name to instance variable
+        self.available_commands = ApiClient.get_commands(agent_name=self.agent_name)  # Access instance variable
+        self.agent_commands = self.available_commands
+
+        self.command_name_dropdown = DropDown()
+
+        if self.available_commands is not None:
+            for command in [""] + list(self.available_commands):
+                btn = Button(text=command, size_hint_y=None, height=44)
+                btn.bind(on_release=lambda btn: self.command_name_dropdown.select(btn.text))
+                self.command_name_dropdown.add_widget(btn)
+
+        self.command_name_button = Button(
+            text="Select Command",
+            size_hint=(None, None),
+            height=44,
+        )
+        self.command_name_button.bind(on_release=self.command_name_dropdown.open)
+        self.command_name_dropdown.bind(on_select=self.on_command_name_selected)
+
+        self.content = BoxLayout(orientation='vertical', spacing=10)
+        self.content.add_widget(self.command_name_button)
+
+    def on_command_name_selected(self, instance, selected_command):
+        if selected_command:
+            command_args = ApiClient.get_command_args(command_name=selected_command)
+            if isinstance(command_args, str):
+                command_args = [command_args]
+            args = [list(command_args), {"prompt": self.prompt, "step_number": self.step_number}]
+            new_prompt = {"command_name": selected_command, **args}
+            self.result = [new_prompt]
+            self.dismiss()
 
 
 
 
 class ChainManagementPage(Screen):
     def __init__(self, **kwargs):
-        super(ChainManagementPage, self).__init__(name='Chain Management', **kwargs)
+        super(ChainManagementPage, self).__init__(**kwargs)
+        self.name = 'Chain Management'
 
-        # Create a layout
-        layout = BoxLayout(orientation='vertical')
+        # Chain Name widgets
+        chain_name_label = Label(text='Chain Name:', size_hint=(None, None), height=50, pos_hint={'center_x': 0.5, 'top': 1})
+        self.chain_name = TextInput(multiline=False, size_hint=(None, None), size=(300, 40), pos_hint={'center_x': 0.5, 'top': 0.9})
+        self.add_widget(chain_name_label)
+        self.add_widget(self.chain_name)
 
-        # Create a dropdown menu
+        # Import Chain widgets
+        chain_file_label = Label(text='Import Chain:', size_hint=(None, None), height=50, pos_hint={'center_x': 0.5, 'top': 0.8})
+        self.chain_file = FileChooserListView(size_hint_y=None, height=50, pos_hint={'center_x': 0.5, 'top': 0.75})
+        self.add_widget(chain_file_label)
+        self.add_widget(self.chain_file)
+
+        # Chain Action widgets
+        chain_action_label = Label(text='Select Action:', size_hint=(None, None), height=50, pos_hint={'center_x': 0.5, 'top': 0.67})
         self.chain_action = DropDown()
 
-        # Create buttons for each option and add them to the dropdown
-        for action in ['Create Chain', 'Modify Chain', 'Delete Chain']:
+        actions = ['Create Chain', 'Modify Chain', 'Delete Chain', 'Add Step']
+        for action in actions:
             btn = Button(text=action, size_hint_y=None, height=44)
             btn.bind(on_release=lambda btn: self.chain_action.select(btn.text))
             self.chain_action.add_widget(btn)
 
-        # Create a button to open the dropdown
-        mainbutton = Button(text='Select Action', size_hint=(None, None))
-        mainbutton.bind(on_release=self.chain_action.open)
-        self.chain_action.bind(on_select=lambda instance, x: setattr(mainbutton, 'text', x))
+        main_button = Button(text='Select Action', size_hint=(None, None), height=44, pos_hint={'center_x': 0.5, 'top': 0.6})
+        main_button.bind(on_release=self.chain_action.open)
+        self.chain_action.bind(on_select=lambda instance, x: setattr(main_button, 'text', x))
+        self.add_widget(chain_action_label)
+        self.add_widget(main_button)
 
-        layout.add_widget(mainbutton)
+        # Command Selection Button widget
+        command_selection_button = Button(text='Select Command', size_hint_y=None, height=44, pos_hint={'center_x': 0.5, 'top': 0.5})
+        command_selection_button.bind(on_release=self.show_command_selection_popup)
+        self.add_widget(command_selection_button)
 
-        # Create a text input field for the chain name
-        self.chain_name = TextInput(multiline=False)
-        layout.add_widget(Label(text='Chain Name: '))
-        layout.add_widget(self.chain_name)
-
-        # Create a file chooser for importing a chain
-        self.chain_file = FileChooserIconView()
-        layout.add_widget(Label(text='Import Chain: '))
-        layout.add_widget(self.chain_file)
-
-        # Create an action button
-        self.action_button = Button(text='Perform Action')
+        # Action Button widget
+        self.action_button = Button(text='Perform Action', size_hint_y=None, height=44, pos_hint={'center_x': 0.5, 'top': 0.4})
         self.action_button.bind(on_release=self.on_action_button_pressed)
-        layout.add_widget(self.action_button)
+        self.add_widget(self.action_button)
 
-        self.add_widget(layout)
+    def show_command_selection_popup(self, instance):
+        command_selection_popup = CommandSelectionPopup(prompt={}, step_number=0)
+        command_selection_popup.bind(on_dismiss=self.on_command_selection_popup_dismiss)
+        command_selection_popup.open()
+
+    def on_command_selection_popup_dismiss(self, instance):
+        new_prompt = instance.result
+        if new_prompt:
+            self.chain_name.text = new_prompt.get("command_name", "")
 
     def on_action_button_pressed(self, instance):
-        if self.chain_action.text == 'Create Chain':
-            # TODO: Implement chain creation logic here
-            pass
-        elif self.chain_action.text == 'Modify Chain':
-            # TODO: Implement chain modification logic here
-            pass
-        elif self.chain_action.text == 'Delete Chain':
-            # TODO: Implement chain deletion logic here
-            pass
+        chain_name = self.chain_name.text
+        selected_action = self.chain_action.text
+
+        if selected_action == 'Create Chain':
+            self.create_chain_action()
+        elif selected_action == 'Modify Chain':
+            self.modify_chain_action(chain_name)
+        elif selected_action == 'Delete Chain':
+            self.delete_chain_action(chain_name)
+        elif selected_action == 'Add Step':
+            self.add_step_action(chain_name)
+
+    def create_chain_action(self):
+        chain_name = self.chain_name.text
+
+        # Import Chain
+        chain_file = self.chain_file.selection and self.chain_file.selection[0]
+        if chain_file:
+            chain_name = chain_file.split(".")[0]
+            with open(chain_file, 'r') as file:
+                chain_content = file.read()
+                steps = json.loads(chain_content)
+                ApiClient.import_chain(chain_name=chain_name, steps=steps)
+                print(f"Chain '{chain_name}' added.")
+            self.chain_file.selection.clear()
+
+            if chain_name:
+                ApiClient.add_chain(chain_name=chain_name)
+                print(f"Chain '{chain_name}' created.")
+
+    def modify_chain_action(self, chain_name):
+        if chain_name:
+            agents = ApiClient.get_agents()
+            self.modify_chain(chain_name=chain_name, agents=agents)
+        else:
+            print("Please select a chain to manage steps.")
+
+    def delete_chain_action(self, chain_name):
+        if chain_name:
+            ApiClient.delete_chain(chain_name=chain_name)
+            print(f"Chain '{chain_name}' deleted.")
+        else:
+            print("Chain name is required.")
+
+    def add_step_action(self, chain_name):
+        if chain_name:
+            agents = ApiClient.get_agents()
+            chain_steps = ApiClient.get_chain(chain_name=chain_name).get("steps", [])
+            step_number = len(chain_steps) + 1
+            self.add_new_step(chain_name=chain_name, step_number=step_number, agents=agents)
+        else:
+            print("Please select a chain to add a step.")
+
+    def add_new_step(self, chain_name, step_number, agents):
+        self.ids.output_label.text = f"Add Chain Step {step_number}\n"
+
+        agent_name_dropdown = DropDown()
+        for agent in [""] + [agent["name"] for agent in agents]:
+            btn = Button(text=agent, size_hint_y=None, height=44)
+            btn.bind(on_release=lambda btn: agent_name_dropdown.select(btn.text))
+            agent_name_dropdown.add_widget(btn)
+
+        agent_name_button = Button(
+            text="Select Agent",
+            size_hint=(None, None),
+            height=44,
+        )
+        agent_name_button.bind(on_release=agent_name_dropdown.open)
+        agent_name_dropdown.bind(on_select=lambda instance, x: setattr(agent_name_button, 'text', x))
+
+        prompt_categories_dropdown = DropDown()
+        for prompt_type in [""] + ["Command", "Prompt", "Chain"]:
+            btn = Button(text=prompt_type, size_hint_y=None, height=44)
+            btn.bind(on_release=lambda btn: prompt_categories_dropdown.select(btn.text))
+            prompt_categories_dropdown.add_widget(btn)
+
+        prompt_categories_button = Button(
+            text="Select Step Type",
+            size_hint=(None, None),
+            height=44,
+        )
+        prompt_categories_button.bind(on_release=prompt_categories_dropdown.open)
+        prompt_categories_dropdown.bind(on_select=lambda instance, x: setattr(prompt_categories_button, 'text', x))
+
+        add_step_button = Button(
+            text="Add New Step",
+            size_hint=(None, None),
+            height=44,
+        )
+        add_step_button.bind(on_release=lambda instance: self.perform_add_step(chain_name, step_number, agent_name_button.text, prompt_categories_button.text))
+
+        self.ids.output_label.add_widget(agent_name_button)
+        self.ids.output_label.add_widget(prompt_categories_button)
+        self.ids.output_label.add_widget(add_step_button)
+
+    def perform_add_step(self, chain_name, step_number, agent_name, prompt_type):
+        if chain_name and step_number and agent_name and prompt_type:
+            ApiClient.add_step(
+                chain_name=chain_name,
+                step_number=step_number,
+                agent_name=agent_name,
+                prompt_categories=ApiClient.get_prompt_categories(),
+                prompt={},  # You may need to modify this part based on your actual implementation
+            )
+            self.ids.output_label.text = f"Step added to chain '{chain_name}'."
+        else:
+            self.ids.output_label.text = "All fields are required."
+
+
+
+
 
 
 
@@ -375,16 +529,49 @@ class AgentManagementPage(Screen):
         self.agent_name = ""
         self.provider_name = ""
         self.agent_settings = {}
-        self.extension_settings = {}
-        self.available_commands = {}
+        self.layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
+        self.add_widget(self.layout)
+
+        self.load_agent_configuration()
+
+    def load_agent_configuration(self):
+        agents = ApiClient.get_agents()
+        agent_names = [agent['name'] for agent in agents]
+        agent_config = ApiClient.get_agentconfig(agent_name=agent_names[0])
+        if agent_config is not None:
+            if isinstance(agent_config, str):
+                agent_config = json.loads(agent_config)
+            self.extension_settings = {}
+            commands = ApiClient.get_commands(agent_name=agent_names[0])
+            if commands is not None:
+                if isinstance(commands, str):
+                    commands = json.loads(commands)
+            else:
+                commands = {}
+        else:
+            agent_config = {}
+            commands = {}
+
+        def get_providers():
+            return ApiClient.get_providers()
+
+        def provider_settings(provider_name: str):
+            return ApiClient.get_provider_settings(provider_name=provider_name)
+
+        def get_extension_settings():
+            return ApiClient.get_extension_settings()
+
         self.extension_setting_keys = []
 
-        self.layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
+        agent_settings = agent_config.get("settings", {})
+        self.embedder_name = agent_settings.get("embedder", "default")
+        self.commands = agent_config.get("commands", {})
+
         self.header_label = Label(text="Agent Management", font_size=24)
         self.layout.add_widget(self.header_label)
 
         self.agent_selection_spinner = Spinner(text="Select Agent")
-        self.agent_selection_spinner.values = ["Agent1", "Agent2", "Agent3"]  # Replace with your actual agent names
+        self.agent_selection_spinner.values = agent_names if agent_names is not None else []
         self.agent_selection_spinner.bind(text=self.on_agent_spinner_change)
         self.layout.add_widget(self.agent_selection_spinner)
 
@@ -396,7 +583,8 @@ class AgentManagementPage(Screen):
         self.layout.add_widget(self.agent_actions_layout)
 
         self.provider_selection_spinner = Spinner(text="Select Provider")
-        self.provider_selection_spinner.values = ["Provider1", "Provider2", "Provider3"]  # Replace with your actual providers
+        providers = get_providers()  # Fix: Call the function without self.
+        self.provider_selection_spinner.values = providers if providers is not None else []
         self.provider_selection_spinner.bind(text=self.on_provider_spinner_change)
         self.layout.add_widget(self.provider_selection_spinner)
 
@@ -412,45 +600,125 @@ class AgentManagementPage(Screen):
         self.layout.add_widget(self.wipe_memories_button)
         self.layout.add_widget(self.delete_agent_button)
 
-        self.add_widget(self.layout)
+        # Display commands
+        self.display_commands()
+
+    def display_commands(self):
+        for command_name, command_value in self.commands.items():
+            command_box = BoxLayout(orientation='horizontal')
+            command_checkbox = CheckBox(size_hint_y=None, height=150, active=command_value)
+            command_checkbox.bind(active=self.on_command_checkbox_change)
+            command_label = Label(text=command_name)
+            command_box.add_widget(command_checkbox)
+            command_box.add_widget(command_label)
+            self.agent_settings_layout.add_widget(command_box)
 
     def on_agent_spinner_change(self, spinner, text):
         self.agent_name = text
-        # Load agent configuration and update UI
         self.load_agent_configuration()
 
     def import_agent(self, instance):
-        # Implement import agent functionality
-        pass
+        file_chooser = FileChooserListView(filters=["*.json"])
+        file_chooser.bind(selection=self.on_file_selected)
+        self.add_widget(file_chooser)
+
+    def on_file_selected(self, file_chooser, selection):
+        selected_file = selection and selection[0] or None
+        if selected_file:
+            with open(selected_file, "r") as agent_file:
+                agent_settings = agent_file.read()
+                try:
+                    agent_config = json.loads(agent_settings)
+                except json.JSONDecodeError:
+                    print("Invalid JSON in selected file.")
+                    return
+            pass
 
     def add_agent(self, instance):
-        # Implement add agent functionality
-        pass
+        agent_name = "test_agent"
+        settings = {
+            "provider": "gpt4free",
+            "embedder": "default",
+            "AI_MODEL": "gpt-3.5-turbo",
+            "AI_TEMPERATURE": "0.7",
+            "AI_TOP_P": "1",
+            "MAX_TOKENS": "4096",
+            "helper_agent_name": "OpenAI",
+            "WEBSEARCH_TIMEOUT": 0,
+            "WAIT_BETWEEN_REQUESTS": 1,
+            "WAIT_AFTER_FAILURE": 3,
+            "stream": False,
+            "WORKING_DIRECTORY": "./WORKSPACE",
+            "WORKING_DIRECTORY_RESTRICTED": True,
+            "AUTONOMOUS_EXECUTION": False,
+        }
+        agent_name = "test_agent"
+        add_agent_resp = ApiClient.add_agent(agent_name=agent_name, settings=settings)
+        return add_agent_resp
 
     def on_provider_spinner_change(self, spinner, text):
         self.provider_name = text
-        # Update provider settings in UI
         self.update_provider_settings()
 
-    def update_provider_settings(self):
-        # Implement updating provider settings in the UI
-        pass
-
     def update_agent_settings(self, instance):
-        # Implement updating agent settings
+        ApiClient.update_agent_settings(
+            agent_name=self.agent_name, settings=self.agent_settings
+        )
         pass
 
     def wipe_agent_memories(self, instance):
-        # Implement wiping agent memories
-        pass
+        if self.agent_name:
+            ApiClient.wipe_agent_memories(agent_name=self.agent_name)
+        else:
+            print("No agent selected.")
 
     def delete_agent(self, instance):
-        # Implement deleting agent
+        ApiClient.delete_agent(agent_name=self.agent_name)
         pass
 
-    def load_agent_configuration(self):
-        # Implement loading agent configuration and updating UI
-        pass
+    def add_agent_setting_checkbox(self, setting_name, setting_value):
+        checkbox = CheckBox(size_hint_y=None, height=40, active=setting_value)
+        checkbox.bind(active=self.on_agent_setting_checkbox_change)
+        self.agent_settings_layout.add_widget(checkbox)
+
+    def on_agent_setting_checkbox_change(self, checkbox, value):
+        agent_config = ApiClient.get_agentconfig(agent_name=self.agent_name)
+        if isinstance(agent_config, dict):
+            agent_settings = agent_config.get("settings", {})
+            setting_name = checkbox.text
+            agent_settings[setting_name] = value
+        else:
+            print("Invalid agent configuration")
+
+    def add_command_checkbox(self, command_name, command_value):
+        checkbox = CheckBox(size_hint_y=None, height=40, active=command_value, text=command_name)
+        checkbox.bind(active=self.on_command_checkbox_change)
+        self.agent_settings_layout.add_widget(checkbox)
+
+    def on_command_checkbox_change(self, checkbox, value):
+        self.commands[checkbox.text] = value
+
+    def update_provider_settings(self):
+        self.agent_settings["embedder"] = self.embedder_name
+        if "WEBSEARCH_TIMEOUT" not in self.agent_settings:
+            self.agent_settings["WEBSEARCH_TIMEOUT"] = 0
+        websearch_timeout = TextInput(
+            text=str(self.agent_settings["WEBSEARCH_TIMEOUT"])
+        )
+
+        for setting_name, setting_value in self.agent_settings.items():
+            self.add_agent_setting_checkbox(setting_name, setting_value)
+
+        for command_name, command_value in self.commands.items():
+            self.add_command_checkbox(command_name, command_value)
+
+
+
+
+
+
+
+
 
 
 class AgentTrainingPage(Screen):
@@ -509,6 +777,13 @@ class AgentTrainingPage(Screen):
             pass
 
 
+class VoiceScreenPage(Screen):
+    def __init__(self, **kwargs):
+        super(VoiceScreenPage, self).__init__(name='Voice', **kwargs)
+        self.add_widget(Label(text="Voice Screen"))
+        
+
+
 
 class MyApp(MDApp):
     def __init__(self, **kwargs):
@@ -536,6 +811,9 @@ class MyApp(MDApp):
 
         chain_management_screen = ChainManagementPage()
         self.sm.add_widget(chain_management_screen)
+
+        voice_screen = VoiceScreenPage()
+        self.sm.add_widget(voice_screen)
 
         home_screen = HomeScreen()
         self.sm.add_widget(home_screen)
@@ -587,11 +865,13 @@ class MyApp(MDApp):
         self.change_page(ToggleButton(text="Home"))
 
         return main_layout
+    
+        
 
     def create_radio_buttons(self):
         box = BoxLayout(orientation='vertical')
 
-        for page_name in ["Home", "Agent Interactions", "Agent Training", "Agent Management", "Memory Management", "Prompt Management", "Chain Management"]:
+        for page_name in ["Home", "Agent Interactions", "Agent Training", "Agent Management", "Memory Management", "Prompt Management", "Chain Management", "Voice"]:
             rb = ToggleButton(group='pages', size_hint=(1, None), height=30)
             rb.text = page_name
             rb.bind(on_press=self.change_page)
@@ -640,5 +920,4 @@ class MyApp(MDApp):
     def show_help(self, *args):
         self.change_page(ToggleButton(text="Help"))
 
-if __name__ == "__main__":
-    MyApp().run()
+MyApp().run()
